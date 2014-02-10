@@ -1,0 +1,62 @@
+
+module Network.FCP (
+  Connection, connect, processMessages
+  
+  ) where
+
+import Control.Monad ( forever )
+import Network
+import System.IO
+import Text.Printf
+
+data Connection = Conn
+     { cHandle :: Handle
+     }
+
+write :: Handle -> String -> IO ()
+write h s = do
+  hPrintf h "%s\n" s
+  printf "> %s\n" s
+
+sendMessage :: Connection -> String -> [(String, String)] -> IO ()
+sendMessage c name fields = do
+  let
+    h = cHandle c
+    field (n, v) = write h $ n ++ "=" ++ v
+    
+  write h name
+  mapM_ field fields
+  write h "EndMessage"
+  hFlush h
+    
+connect :: String -> Int -> IO Connection
+connect host port = do
+  h <- connectTo host (PortNumber $ fromIntegral port)
+  hSetBuffering h NoBuffering
+  let
+    c = Conn h
+
+  sendMessage c "ClientHello"
+    [ ("Name", "hfcp"), ("ExpectedVersion", "2.0") ]
+
+  return c
+
+readLn :: Connection -> IO String
+readLn c = do
+  let
+    h = cHandle c
+  s <- hGetLine h
+  putStrLn $ "< " ++ s
+  return s
+
+readMessage :: Connection -> IO [(String, String)]
+  
+processMessages :: Connection -> IO ()
+processMessages c = forever $ do
+  name <- readLn
+  case name of
+    "NodeHello" -> do
+      msg <- readMessage c
+      
+    _ -> error name
+    
