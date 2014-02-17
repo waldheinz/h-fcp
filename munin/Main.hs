@@ -5,7 +5,7 @@ module Main (
 
 import Control.Monad ( forM_ )
 import qualified Data.Map.Strict as Map
-import System.Environment ( getArgs )
+import System.Environment ( getArgs, getProgName )
 
 import qualified Network.FCP as FCP
 
@@ -21,6 +21,14 @@ bandwidth = ("Bandwidth", "rate",
   , ("rate_out", "output rate", Gauge, "totalOutputRate")
   ])
 
+fetchCount :: ValueSet
+fetchCount = ("Fetch Count", "# of fetches",
+              [ ("chk_local" , "CHK local" , Counter, "chkLocalFetchCount" )
+              , ("chk_remote", "CHK remote", Counter, "chkRemoteFetchCount")
+              , ("ssk_local" , "SSK local" , Counter, "sskLocalFetchCount" )
+              , ("ssk_remote", "SSK remote", Counter, "sskRemoteFetchCount")
+              ])
+
 printConfig :: ValueSet -> IO ()
 printConfig (t, vl, vs) = do
   putStrLn $ "graph_category freenet"
@@ -28,9 +36,11 @@ printConfig (t, vl, vs) = do
   putStrLn $ "graph_vlabel " ++ vl
   forM_ vs $ \(n, l, t, _) -> do
     putStrLn $ n ++ ".label " ++ l
-    putStrLn $ n ++ ".type " ++ case t of
-      Gauge   -> "GAUGE"
-      Counter -> "COUNTER"
+    case t of
+      Gauge -> putStrLn $ n ++ ".type GAUGE"
+      Counter -> do
+        putStrLn $ n ++ ".type DERIVE"
+        putStrLn $ n ++ ".min 0"
       
 printStats :: ValueSet -> FCP.RawMessage -> IO ()
 printStats (_, _, vs) m = forM_ vs $ \(n, _, t, vn) ->
@@ -47,7 +57,9 @@ printValues vs = do
 
 main :: IO ()
 main = do
-  let vs = bandwidth
+  vs <- getProgName >>= \pn -> return $ case pn of
+    "fn_fetch_count" -> fetchCount
+    _                -> bandwidth
   args <- getArgs
   
   case args of
