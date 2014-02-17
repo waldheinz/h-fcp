@@ -29,6 +29,14 @@ fetchCount = ("Fetch Count", "# of fetches",
               , ("ssk_remote", "SSK remote", Counter, "sskRemoteFetchCount")
               ])
 
+fetchSuccess :: ValueSet
+fetchSuccess = ("Fetch Success", "P(success)",
+                [ ("chk_local" , "CHK local" , Gauge, "chkLocalFetchPSuccess" )
+                , ("chk_remote", "CHK remote", Gauge, "chkRemoteFetchPSuccess")
+                , ("ssk_local" , "SSK local" , Gauge, "sskLocalFetchPSuccess" )
+                , ("ssk_remote", "SSK remote", Gauge, "sskRemoteFetchPSuccess")
+                ])
+
 printConfig :: ValueSet -> IO ()
 printConfig (t, vl, vs) = do
   putStrLn $ "graph_category freenet"
@@ -58,8 +66,9 @@ printValues vs = do
 main :: IO ()
 main = do
   vs <- getProgName >>= \pn -> return $ case pn of
-    "fn_fetch_count" -> fetchCount
-    _                -> bandwidth
+    "fn_fetch_count"   -> fetchCount
+    "fn_fetch_success" -> fetchSuccess
+    _                  -> bandwidth
   args <- getArgs
   
   case args of
