@@ -47,6 +47,16 @@ remotes = ("Remote Transfers", "# of remotes",
            , ("ssk_request", "SSK requests", Gauge, "numberOfRemoteSSKRequests")
            ])
 
+opennetSize :: ValueSet
+opennetSize = ("Opennet Size Estimate", "nodes",
+               [ ("sz_024_hrs", "24 hours" , Gauge, "opennetSizeEstimate24hourRecent")
+               , ("sz_048_hrs", "48 hours" , Gauge, "opennetSizeEstimate48hourRecent")
+               , ("sz_072_hrs", "72 hours" , Gauge, "opennetSizeEstimate72hourRecent")
+               , ("sz_096_hrs", "96 hours" , Gauge, "opennetSizeEstimate96hourRecent")
+               , ("sz_120_hrs", "120 hours", Gauge, "opennetSizeEstimate120hourRecent")
+               , ("sz_144_hrs", "144 hours", Gauge, "opennetSizeEstimate144hourRecent")
+               ])
+              
 printConfig :: ValueSet -> IO ()
 printConfig (t, vl, vs) = do
   putStrLn $ "graph_category freenet"
@@ -79,6 +89,7 @@ main = do
   vs <- getProgName >>= \pn -> return $ case pn of
     "fn_fetch_count"   -> fetchCount
     "fn_fetch_success" -> fetchSuccess
+    "fn_opennet_size"  -> opennetSize
     "fn_remotes"       -> remotes
     _                  -> bandwidth
   args <- getArgs
