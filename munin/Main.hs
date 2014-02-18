@@ -19,6 +19,8 @@ bandwidth :: ValueSet
 bandwidth = ("Bandwidth", "rate",
   [ ("rate_in" , "input rate", Gauge, "totalInputRate")
   , ("rate_out", "output rate", Gauge, "totalOutputRate")
+  , ("recent_rate_in", "recent input rate", Gauge, "recentInputRate")
+  , ("recent_rate_out", "recent output rate", Gauge, "recentOutputRate")
   ])
 
 fetchCount :: ValueSet
@@ -51,9 +53,10 @@ printConfig (t, vl, vs) = do
         putStrLn $ n ++ ".min 0"
       
 printStats :: ValueSet -> FCP.RawMessage -> IO ()
-printStats (_, _, vs) m = forM_ vs $ \(n, _, t, vn) ->
-  putStrLn $ n ++ ".value " ++ ((FCP.rawMsgMap m) Map.! ("volatile." ++ vn))
-
+printStats (_, _, vs) m = (forM_ vs $ \(n, _, t, vn) ->
+  putStrLn $ n ++ ".value " ++ ((FCP.rawMsgMap m) Map.! ("volatile." ++ vn)))
+--  >> print m
+  
 printValues :: ValueSet -> IO ()
 printValues vs = do
   c <- FCP.connect server port
