@@ -39,6 +39,14 @@ fetchSuccess = ("Fetch Success", "P(success)",
                 , ("ssk_remote", "SSK remote", Gauge, "sskRemoteFetchPSuccess")
                 ])
 
+remotes :: ValueSet
+remotes = ("Remote Transfers", "# of remotes",
+           [ ("chk_insert" , "CHK inserts" , Gauge, "numberOfRemoteCHKInserts")
+           , ("chk_request", "CHK requests", Gauge, "numberOfRemoteCHKRequests")
+           , ("ssk_insert" , "SSK inserts" , Gauge, "numberOfRemoteSSKInserts")
+           , ("ssk_request", "SSK requests", Gauge, "numberOfRemoteSSKRequests")
+           ])
+
 printConfig :: ValueSet -> IO ()
 printConfig (t, vl, vs) = do
   putStrLn $ "graph_category freenet"
@@ -71,6 +79,7 @@ main = do
   vs <- getProgName >>= \pn -> return $ case pn of
     "fn_fetch_count"   -> fetchCount
     "fn_fetch_success" -> fetchSuccess
+    "fn_remotes"       -> remotes
     _                  -> bandwidth
   args <- getArgs
   
