@@ -3,8 +3,8 @@ module Main (
   main
   ) where
 
-import Control.Applicative ( (<$>) )
 import Control.Monad ( forM_ )
+import Data.Maybe ( fromMaybe )
 import qualified Data.Map.Strict as Map
 import System.Environment ( getArgs, getEnvironment, getProgName )
 
@@ -66,30 +66,29 @@ allValueSets =
 
 printConfig :: ValueSet -> IO ()
 printConfig (t, vl, vs) = do
-  putStrLn $ "graph_category freenet"
+  putStrLn   "graph_category freenet"
   putStrLn $ "graph_title " ++ t
   putStrLn $ "graph_vlabel " ++ vl
-  forM_ vs $ \(n, l, t, _) -> do
+  forM_ vs $ \(n, l, tp, _) -> do
     putStrLn $ n ++ ".label " ++ l
-    case t of
+    case tp of
       Gauge -> putStrLn $ n ++ ".type GAUGE"
       Counter -> do
         putStrLn $ n ++ ".type DERIVE"
         putStrLn $ n ++ ".min 0"
       
 printStats :: ValueSet -> FCP.RawMessage -> IO ()
-printStats (_, _, vs) m = forM_ vs $ \(n, _, t, vn) ->
-  putStrLn $ n ++ ".value " ++ ((FCP.rawMsgMap m) Map.! ("volatile." ++ vn))
+printStats (_, _, vs) m = forM_ vs $ \(n, _, _, vn) ->
+  putStrLn $ n ++ ".value " ++ (FCP.rawMsgMap m Map.! ("volatile." ++ vn))
   
 printValues :: ValueSet -> IO ()
 printValues vs = do
   (host, port) <- getTarget
   c <- FCP.connect host port
-  FCP.processMessages c $ \rm -> do
-    case FCP.rawMsgName rm of
-      "NodeHello" -> FCP.getNode c False True >> return True
-      "NodeData" -> printStats vs rm >> return False
-      x -> error $ "can't deal with " ++ x
+  FCP.processMessages c $ \rm -> case FCP.rawMsgName rm of
+    "NodeHello" -> FCP.getNode c False True >> return True
+    "NodeData"  -> printStats vs rm >> return False
+    x           -> error $ "can't deal with " ++ x
 
 progNamePrefix :: String
 progNamePrefix = "fn_"
@@ -111,13 +110,8 @@ getTarget = do
   env <- getEnvironment
 
   let
-    host = case lookup "fn_host" env of
-      Nothing -> "localhost"
-      Just h -> h
-
-    port = case lookup "fn_port" env of
-      Nothing -> 9481
-      Just p -> read p
+    host = fromMaybe "localhost" (lookup "fn_host" env)
+    port = read $ fromMaybe "9481" (lookup "fn_port" env)
 
   return (host, port)
 
