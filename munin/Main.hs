@@ -3,6 +3,7 @@ module Main (
   main
   ) where
 
+import Control.Applicative ( (<$>) )
 import Control.Monad ( forM_ )
 import qualified Data.Map.Strict as Map
 import System.Environment ( getArgs, getProgName )
@@ -16,7 +17,7 @@ data ValueType = Counter | Gauge
 type ValueSet = (String, String, [(String, String, ValueType, String)])
 
 bandwidth :: ValueSet
-bandwidth = ("Bandwidth", "rate",
+bandwidth = ("Bandwidth Usage", "rate",
   [ ("rate_in" , "input rate", Gauge, "totalInputRate")
   , ("rate_out", "output rate", Gauge, "totalOutputRate")
   , ("recent_rate_in", "recent input rate", Gauge, "recentInputRate")
@@ -57,6 +58,15 @@ opennetSize = ("Opennet Size Estimate", "nodes",
                , ("sz_144_hrs", "144 hours", Gauge, "opennetSizeEstimate144hourRecent")
                ])
               
+allValueSets :: [(String, ValueSet)]
+allValueSets =
+  [ ("bandwidth",     bandwidth)
+  , ("fetch_count",   fetchCount)
+  , ("fetch_success", fetchSuccess)
+  , ("opennet_size",  opennetSize)
+  , ("remotes",       remotes)
+  ]
+
 printConfig :: ValueSet -> IO ()
 printConfig (t, vl, vs) = do
   putStrLn $ "graph_category freenet"
@@ -71,9 +81,8 @@ printConfig (t, vl, vs) = do
         putStrLn $ n ++ ".min 0"
       
 printStats :: ValueSet -> FCP.RawMessage -> IO ()
-printStats (_, _, vs) m = (forM_ vs $ \(n, _, t, vn) ->
-  putStrLn $ n ++ ".value " ++ ((FCP.rawMsgMap m) Map.! ("volatile." ++ vn)))
---  >> print m
+printStats (_, _, vs) m = forM_ vs $ \(n, _, t, vn) ->
+  putStrLn $ n ++ ".value " ++ ((FCP.rawMsgMap m) Map.! ("volatile." ++ vn))
   
 printValues :: ValueSet -> IO ()
 printValues vs = do
@@ -84,16 +93,27 @@ printValues vs = do
       "NodeData" -> printStats vs rm >> return False
       x -> error $ "can't deal with " ++ x
 
+progNamePrefix :: String
+progNamePrefix = "fn_"
+
+showProgNameHelp :: String -> IO ()
+showProgNameHelp cname = do
+
+  putStrLn "The executable name decides which statistics are generated. Possible values are:"
+  putStrLn ""
+
+  forM_ allValueSets $ \(pn, (desc, _, _)) ->
+    putStrLn $ progNamePrefix ++ pn ++ " -> " ++ desc
+
+  putStrLn ""
+  putStrLn $ "You see, \"" ++ cname ++ "\" is not among them. Maybe you want to create a symlink?"
+
 main :: IO ()
 main = do
-  vs <- getProgName >>= \pn -> return $ case pn of
-    "fn_fetch_count"   -> fetchCount
-    "fn_fetch_success" -> fetchSuccess
-    "fn_opennet_size"  -> opennetSize
-    "fn_remotes"       -> remotes
-    _                  -> bandwidth
-  args <- getArgs
-  
-  case args of
-    ["config"] -> printConfig vs
-    _ -> printValues vs
+  pn <- getProgName
+
+  case lookup (drop (length progNamePrefix) pn) allValueSets of
+    Nothing -> showProgNameHelp pn
+    Just vs -> getArgs >>= \args -> case args of
+      ["config"]  -> printConfig vs
+      _           -> printValues vs
