@@ -6,12 +6,9 @@ module Main (
 import Control.Applicative ( (<$>) )
 import Control.Monad ( forM_ )
 import qualified Data.Map.Strict as Map
-import System.Environment ( getArgs, getProgName )
+import System.Environment ( getArgs, getEnvironment, getProgName )
 
 import qualified Network.FCP as FCP
-
-server = "10.11.0.1"
-port = 9481
 
 data ValueType = Counter | Gauge
 type ValueSet = (String, String, [(String, String, ValueType, String)])
@@ -86,7 +83,8 @@ printStats (_, _, vs) m = forM_ vs $ \(n, _, t, vn) ->
   
 printValues :: ValueSet -> IO ()
 printValues vs = do
-  c <- FCP.connect server port
+  (host, port) <- getTarget
+  c <- FCP.connect host port
   FCP.processMessages c $ \rm -> do
     case FCP.rawMsgName rm of
       "NodeHello" -> FCP.getNode c False True >> return True
@@ -107,6 +105,21 @@ showProgNameHelp cname = do
 
   putStrLn ""
   putStrLn $ "You see, \"" ++ cname ++ "\" is not among them. Maybe you want to create a symlink?"
+
+getTarget :: IO (String, Int)
+getTarget = do
+  env <- getEnvironment
+
+  let
+    host = case lookup "fn_host" env of
+      Nothing -> "localhost"
+      Just h -> h
+
+    port = case lookup "fn_port" env of
+      Nothing -> 9481
+      Just p -> read p
+
+  return (host, port)
 
 main :: IO ()
 main = do
