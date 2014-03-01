@@ -110,8 +110,8 @@ getTarget = do
   env <- getEnvironment
 
   let
-    host = fromMaybe "localhost" (lookup "fn_host" env)
-    port = read $ fromMaybe "9481" (lookup "fn_port" env)
+    host = fromMaybe "localhost" (lookup "host" env)
+    port = read $ fromMaybe "9481" (lookup "port" env)
 
   return (host, port)
 
