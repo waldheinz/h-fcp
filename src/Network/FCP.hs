@@ -3,10 +3,10 @@ module Network.FCP (
   Connection, connect, processMessages,
   
   -- * Client Requests
-  ClientRequest(..), sendRequest, getNode,
+  ClientRequest(..), ClientPutData(..), sendRequest, getNode,
   
   -- * Raw Messages
-  Message, msgName, msgFields, msgPayload
+  Message, msgName, msgFields, msgField, msgPayload
   ) where
 
 import qualified Data.ByteString.Lazy as BSL
@@ -79,6 +79,9 @@ data Message = Message
 mkMessage :: String -> [(String, String)] -> Maybe BSL.ByteString -> Message
 mkMessage name fields payload = Message name (Map.fromList fields) payload
 
+msgField :: String -> Message -> Maybe String
+msgField field = (Map.lookup field) .  msgFields
+
 readMessage :: Connection -> IO Message
 readMessage c = do
   name <- readln c
@@ -107,14 +110,35 @@ processMessages c fn = do
   more <- fn m
   if more then processMessages c fn else return () 
 
+type URI = String
+
+data ClientPutData
+  = DirectPut BSL.ByteString
+  | DiskPut FilePath
+  | RedirectPut URI
+  deriving ( Show )
+
 data ClientRequest =
-  ClientPutDirect
-  { cpdUri        :: String
-  , cpdIdentifier :: String
-  , cpdData       :: BSL.ByteString
+  ClientPut
+  { cpdUri         :: String
+  , cpdContentType :: Maybe String
+  , cpdIdentifier  :: String
+  , cpdData        :: ClientPutData
   }
 
 sendRequest :: Connection -> ClientRequest -> IO ()
-sendRequest c (ClientPutDirect uri ident d) = sendMessage c $
-  mkMessage "ClientPut" [("URI", uri), ("Identifier", ident), ("Global", "true")] (Just d)
+sendRequest c (ClientPut uri ct ident d) = do
+  let
+    fields = [("URI", uri), ("Identifier", ident), ("Global", "true")] ++
+             (case ct of
+               Just ct' -> [("Metadata.ContentType", ct')]
+               Nothing -> []) ++
+             [("UploadFrom", case d of
+                 DirectPut _   -> "direct"
+                 DiskPut _     -> "disk"
+                 RedirectPut _ -> "redirect")]
+    
+  case d of
+    DirectPut bs -> sendMessage c $ mkMessage "ClientPut" fields (Just bs)
+    x -> error $ show x
   
