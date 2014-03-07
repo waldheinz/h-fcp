@@ -130,7 +130,7 @@ data ClientRequest =
 sendRequest :: Connection -> ClientRequest -> IO ()
 sendRequest c (ClientPut uri ct mfn ident d) = do
   let
-    fields = [("URI", uri), ("Identifier", ident), ("Global", "true")] ++
+    fields = [("URI", uri), ("Identifier", ident), ("Verbosity", "1")] ++
              (case ct of
                Just ct' -> [("Metadata.ContentType", ct')]
                Nothing -> []) ++
