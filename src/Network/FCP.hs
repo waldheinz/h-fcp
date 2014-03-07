@@ -43,15 +43,15 @@ sendMessage c (Message name fields payload) = do
       
   hFlush h
     
-connect :: String -> Int -> IO Connection
-connect host port = do
+connect :: String -> String -> Int -> IO Connection
+connect cname host port = do
   h <- connectTo host (PortNumber $ fromIntegral port)
   hSetBuffering h NoBuffering
   let
     c = Conn h
 
   sendMessage c $ Message "ClientHello" (Map.fromList
-    [ ("Name", "hfcp"), ("ExpectedVersion", "2.0") ]) Nothing
+    [ ("Name", cname), ("ExpectedVersion", "2.0") ]) Nothing
 
   return c
 

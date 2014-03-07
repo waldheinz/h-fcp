@@ -84,7 +84,7 @@ printStats (_, _, vs) m = forM_ vs $ \(n, _, _, vn) ->
 printValues :: ValueSet -> IO ()
 printValues vs = do
   (host, port) <- getTarget
-  c <- FCP.connect host port
+  c <- FCP.connect "hmunin" host port
   FCP.processMessages c $ \rm -> case FCP.msgName rm of
     "NodeHello" -> FCP.getNode c False True >> return True
     "NodeData"  -> printStats vs rm >> return False

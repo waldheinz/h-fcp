@@ -14,7 +14,7 @@ import Progress
 
 insertChk :: FilePath -> IO ()
 insertChk file = do
-  conn <- FCP.connect "10.11.0.1" 9481
+  conn <- FCP.connect "hsite" "10.11.0.1" 9481
   cont <- BSL.readFile file
   let mime = Just $ BSC.unpack $ defaultMimeLookup $ Text.pack file
   FCP.sendRequest conn $ FCP.ClientPut "CHK@" mime (Just file) "foo" (FCP.DirectPut cont)
