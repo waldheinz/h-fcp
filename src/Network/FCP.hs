@@ -122,12 +122,13 @@ data ClientRequest =
   ClientPut
   { cpdUri         :: String
   , cpdContentType :: Maybe String
+  , cpdFileName    :: Maybe String
   , cpdIdentifier  :: String
   , cpdData        :: ClientPutData
   }
 
 sendRequest :: Connection -> ClientRequest -> IO ()
-sendRequest c (ClientPut uri ct ident d) = do
+sendRequest c (ClientPut uri ct mfn ident d) = do
   let
     fields = [("URI", uri), ("Identifier", ident), ("Global", "true")] ++
              (case ct of
@@ -136,7 +137,8 @@ sendRequest c (ClientPut uri ct ident d) = do
              [("UploadFrom", case d of
                  DirectPut _   -> "direct"
                  DiskPut _     -> "disk"
-                 RedirectPut _ -> "redirect")]
+                 RedirectPut _ -> "redirect")] ++
+             (maybe [] (\fn -> [("TargetFilename", fn)]) mfn)
     
   case d of
     DirectPut bs -> sendMessage c $ mkMessage "ClientPut" fields (Just bs)

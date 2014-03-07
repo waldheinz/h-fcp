@@ -14,12 +14,12 @@ insertChk file = do
   conn <- FCP.connect "localhost" 9481
   cont <- BSL.readFile file
   let mime = Just $ BSC.unpack $ defaultMimeLookup $ Text.pack file
-  FCP.sendRequest conn $ FCP.ClientPut "CHK@" mime "foo" (FCP.DirectPut cont)
+  FCP.sendRequest conn $ FCP.ClientPut "CHK@" mime (Just file) "foo" (FCP.DirectPut cont)
   FCP.processMessages conn $ \msg -> case FCP.msgName msg of
     "URIGenerated" -> do
       case FCP.msgField "URI" msg of
         Nothing  -> error "got no URI in URIGenerated message?!"
-        Just uri -> putStrLn (uri ++ "/" ++ file) >> return False
+        Just uri -> putStrLn uri >> return False
     _ -> return True
   
 parseArgs :: [String] -> IO ()
