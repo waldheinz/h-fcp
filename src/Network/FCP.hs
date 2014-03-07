@@ -9,7 +9,6 @@ module Network.FCP (
   Message, msgName, msgFields, msgPayload
   ) where
 
-import Control.Monad ( forever )
 import qualified Data.ByteString.Lazy as BSL
 import Data.Char ( toLower )
 import qualified Data.Map.Strict as Map
@@ -77,22 +76,35 @@ data Message = Message
                   , msgPayload :: Maybe BSL.ByteString
                   } deriving ( Show )
 
-readMessage :: Connection -> IO [(String, String)]
-readMessage c = go [] where
-  go xs = readln c >>= \ln -> case ln of
-    "EndMessage" -> return xs
-    fv -> go xs >>= \rest -> return $ (parse ln) : rest
-  parse ln = let (n, v) = break (== '=') ln in (n, tail v)
+mkMessage :: String -> [(String, String)] -> Maybe BSL.ByteString -> Message
+mkMessage name fields payload = Message name (Map.fromList fields) payload
+
+readMessage :: Connection -> IO Message
+readMessage c = do
+  name <- readln c
+  (fields, hasData) <- readFields
+  
+  let
+    msg = mkMessage name fields
+    
+  if hasData
+     then case lookup "DataLength" fields of
+       Nothing  -> error $ "binary message " ++ name ++ "but no DataLength given"
+       Just dls -> BSL.hGet (cHandle c) (read dls) >>= \d -> return $ msg (Just d)
+    else return $ msg Nothing
+
+  where
+    readFields = go [] where
+      go xs = readln c >>= \ln -> case ln of
+        "EndMessage" -> return (xs, False)
+        "Data"       -> return (xs, True)
+        _            -> go (parse ln : xs)
+      parse ln = let (n, v) = break (== '=') ln in (n, tail v)
 
 processMessages :: Connection -> (Message -> IO Bool) -> IO ()
 processMessages c fn = do
-  n <- readln c
-  m <- case n of
-    "NodeHello" -> readMessage c
-    "NodeData" -> readMessage c
-    _ -> error $ "unknown message " ++ n
-  
-  more <- fn $ Message n (Map.fromList m) Nothing
+  m <- readMessage c
+  more <- fn m
   if more then processMessages c fn else return () 
 
 data ClientRequest =
@@ -103,5 +115,6 @@ data ClientRequest =
   }
 
 sendRequest :: Connection -> ClientRequest -> IO ()
-sendRequest c (ClientPutDirect uri id d) = return ()
+sendRequest c (ClientPutDirect uri ident d) = sendMessage c $
+  mkMessage "ClientPut" [("URI", uri), ("Identifier", ident), ("Global", "true")] (Just d)
   
