@@ -77,15 +77,15 @@ printConfig (t, vl, vs) = do
         putStrLn $ n ++ ".type DERIVE"
         putStrLn $ n ++ ".min 0"
       
-printStats :: ValueSet -> FCP.RawMessage -> IO ()
+printStats :: ValueSet -> FCP.Message -> IO ()
 printStats (_, _, vs) m = forM_ vs $ \(n, _, _, vn) ->
-  putStrLn $ n ++ ".value " ++ (FCP.rawMsgMap m Map.! ("volatile." ++ vn))
+  putStrLn $ n ++ ".value " ++ (FCP.msgFields m Map.! ("volatile." ++ vn))
   
 printValues :: ValueSet -> IO ()
 printValues vs = do
   (host, port) <- getTarget
   c <- FCP.connect host port
-  FCP.processMessages c $ \rm -> case FCP.rawMsgName rm of
+  FCP.processMessages c $ \rm -> case FCP.msgName rm of
     "NodeHello" -> FCP.getNode c False True >> return True
     "NodeData"  -> printStats vs rm >> return False
     x           -> error $ "can't deal with " ++ x

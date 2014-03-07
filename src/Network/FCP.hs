@@ -1,15 +1,16 @@
 
 module Network.FCP (
   Connection, connect, processMessages,
+  
   -- * Client Requests
-
-  getNode,
+  ClientRequest(..), sendRequest, getNode,
   
   -- * Raw Messages
-  RawMessage, rawMsgName, rawMsgMap
+  Message, msgName, msgFields, msgPayload
   ) where
 
 import Control.Monad ( forever )
+import qualified Data.ByteString.Lazy as BSL
 import Data.Char ( toLower )
 import qualified Data.Map.Strict as Map
 import Network
@@ -25,15 +26,22 @@ write h s = do
   hPrintf h "%s\n" s
 --  printf "> %s\n" s
 
-sendMessage :: Connection -> String -> [(String, String)] -> IO ()
-sendMessage c name fields = do
+sendMessage :: Connection -> Message -> IO ()
+sendMessage c (Message name fields payload) = do
   let
     h = cHandle c
     field (n, v) = write h $ n ++ "=" ++ v
     
   write h name
-  mapM_ field fields
-  write h "EndMessage"
+  mapM_ field $ Map.toList fields
+
+  case payload of
+    Nothing -> write h "EndMessage"
+    Just pl -> do
+      field ("DataLength", show $ BSL.length pl)
+      write h "Data"
+      BSL.hPut h pl
+      
   hFlush h
     
 connect :: String -> Int -> IO Connection
@@ -43,8 +51,8 @@ connect host port = do
   let
     c = Conn h
 
-  sendMessage c "ClientHello"
-    [ ("Name", "hfcp"), ("ExpectedVersion", "2.0") ]
+  sendMessage c $ Message "ClientHello" (Map.fromList
+    [ ("Name", "hfcp"), ("ExpectedVersion", "2.0") ]) Nothing
 
   return c
 
@@ -57,14 +65,16 @@ readln c = do
   return s
 
 getNode :: Connection -> Bool -> Bool -> IO ()
-getNode c priv vol = sendMessage c "GetNode"
+getNode c priv vol = sendMessage c $ Message "GetNode" (Map.fromList
                      [ ("WithPrivate", map toLower $ show priv)
                      , ("WithVolatile", map toLower $ show vol)
-                     ]
+                     ])
+                     Nothing
 
-data RawMessage = RawMessage
-                  { rawMsgMap  :: (Map.Map String String)
-                  , rawMsgName :: String
+data Message = Message
+                  { msgName    :: String
+                  , msgFields  :: (Map.Map String String)
+                  , msgPayload :: Maybe BSL.ByteString
                   } deriving ( Show )
 
 readMessage :: Connection -> IO [(String, String)]
@@ -74,7 +84,7 @@ readMessage c = go [] where
     fv -> go xs >>= \rest -> return $ (parse ln) : rest
   parse ln = let (n, v) = break (== '=') ln in (n, tail v)
 
-processMessages :: Connection -> (RawMessage -> IO Bool) -> IO ()
+processMessages :: Connection -> (Message -> IO Bool) -> IO ()
 processMessages c fn = do
   n <- readln c
   m <- case n of
@@ -82,6 +92,16 @@ processMessages c fn = do
     "NodeData" -> readMessage c
     _ -> error $ "unknown message " ++ n
   
-  more <- fn $ RawMessage (Map.fromList m) n
+  more <- fn $ Message n (Map.fromList m) Nothing
   if more then processMessages c fn else return () 
+
+data ClientRequest =
+  ClientPutDirect
+  { cpdUri        :: String
+  , cpdIdentifier :: String
+  , cpdData       :: BSL.ByteString
+  }
+
+sendRequest :: Connection -> ClientRequest -> IO ()
+sendRequest c (ClientPutDirect uri id d) = return ()
   
