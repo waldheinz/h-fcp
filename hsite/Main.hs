@@ -6,6 +6,7 @@ import qualified Data.ByteString.Lazy as BSL
 import qualified Data.Text as Text
 import Network.Mime ( defaultMimeLookup )
 import System.Environment ( getArgs )
+import System.IO ( hFlush, stdout )
 
 import qualified Network.FCP as FCP
 
@@ -19,7 +20,7 @@ insertChk file = do
     "URIGenerated" -> do
       case FCP.msgField "URI" msg of
         Nothing  -> error "got no URI in URIGenerated message?!"
-        Just uri -> putStrLn uri >> return False
+        Just uri -> putStrLn uri >> hFlush stdout >> return False
     _ -> return True
   
 parseArgs :: [String] -> IO ()
