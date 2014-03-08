@@ -5,7 +5,7 @@ module Database (
   SiteDb, withDb, initDb,
   
   -- * working with the DB
-  addFile, updateFileUri, insertDone
+  needsInsert, addFile, updateFileUri, insertDone
   
   ) where
 
@@ -72,6 +72,16 @@ withDb act = findDbFolder >>= \mdbf -> case mdbf of
 -----------------------------------------------------------------
 
 type FileInfo = (FilePath, Integer, BS.ByteString)
+
+needsInsert :: SiteDb -> FileInfo -> IO Bool
+needsInsert db (absPath, size, hash) = do
+  let
+    c = mdbConn db
+    relPath = makeRelative (mdbBasePath db) absPath
+    q = "SELECT 1 FROM files WHERE file_name = ? AND file_size = ? AND file_sha1 = ? AND file_last_insert == NULL"
+
+  xs <- SQL.query c q (relPath, size, hash) :: IO [SQL.Only Int]
+  return $ null xs
   
 addFile :: SiteDb -> FileInfo -> IO ()
 addFile db (absPath, size, hash) = do
@@ -87,9 +97,9 @@ updateFileUri db absPath uri = do
   let
     c = mdbConn db
     relPath = makeRelative (mdbBasePath db) absPath
-    q = "UPDATE files SET file_uri = ?, file_last_insert = NULL WHERE file_name = ?"
+    q = "UPDATE files SET file_last_insert = CASE WHEN file_uri != ? THEN NULL ELSE file_uri END, file_uri = ? WHERE file_name = ?"
     
-  SQL.execute c q (uri, relPath)
+  SQL.execute c q (uri, uri, relPath)
 
 insertDone :: SiteDb -> FilePath -> IO ()
 insertDone db absPath = do
