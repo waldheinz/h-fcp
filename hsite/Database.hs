@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Database (
-  MediaDb, findDbFolder, withDbFolder, initDb, openDb,
+  SiteDb, findDbFolder, withDbFolder, initDb, openDb,
   
   -- * working with the DB
   addFile
@@ -21,14 +21,14 @@ import Paths_h_fcp
 dbDir :: FilePath -> FilePath
 dbDir base = base </> ".hsite"
 
-data MediaDb = MDB
+data SiteDb = MDB
                { mdbConn     :: SQL.Connection
                , mdbBasePath :: FilePath
                }
 
 initDb :: FilePath -> IO ()
 initDb p = do
-  putStrLn $ "initializing mdb in " ++ (dbDir p)
+  putStrLn $ "initializing DB in " ++ (dbDir p)
   
   ex <- doesDirectoryExist (dbDir p)
   if ex
@@ -40,12 +40,12 @@ initDb p = do
         SQL.execute_ c $ SQL.Query initQuery
         return ()
 
-openDb :: FilePath -> IO MediaDb
+openDb :: FilePath -> IO SiteDb
 openDb dir = do
   c <- SQL.open (dir </> "index.db")
   return $ MDB c $ takeDirectory dir
 
-closeDb :: MediaDb -> IO ()
+closeDb :: SiteDb -> IO ()
 closeDb db = SQL.close $ mdbConn db
 
 -- | finds the DB folder relative to the current directory by walking
@@ -59,8 +59,8 @@ findDbFolder = getCurrentDirectory >>= go where
       else let d' = takeDirectory d in if (d' == d)
                                        then return Nothing
                                        else go d'
-  
-withDbFolder :: FilePath -> (MediaDb -> IO ()) -> IO ()
+
+withDbFolder :: FilePath -> (SiteDb -> IO ()) -> IO ()
 withDbFolder dbf act = do
   db <- openDb dbf
   finally (act db) (closeDb db)
@@ -71,7 +71,7 @@ withDbFolder dbf act = do
 
 type FileInfo = (FilePath, Integer, BS.ByteString)
   
-addFile :: MediaDb -> FileInfo -> IO ()
+addFile :: SiteDb -> FileInfo -> IO ()
 addFile db (absPath, size, hash) = do
   let
     c = mdbConn db
