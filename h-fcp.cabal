@@ -52,6 +52,7 @@ executable hsite
     directory     >= 1.2,
     filepath      >= 1.3,
     mime-types    >= 0.1,
+    SHA           >= 1.6,
     sqlite-simple >= 0.4,
     text          >= 0.11,
     h-fcp

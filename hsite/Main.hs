@@ -17,7 +17,7 @@ runMode (CMD.Init mp) = do
   
   DB.initDb p
   
-runMode (CMD.InsertChk files) = mapM_ INS.insertChk files
+runMode (CMD.InsertFiles files) = DB.withDb (\db -> mapM_ (INS.insertChk db) files)
 
 main :: IO ()
 main = do

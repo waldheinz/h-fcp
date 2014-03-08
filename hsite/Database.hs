@@ -2,10 +2,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Database (
-  SiteDb, findDbFolder, withDbFolder, initDb, openDb,
+  SiteDb, withDb, initDb,
   
   -- * working with the DB
-  addFile
+  addFile, updateFileUri, insertDone
   
   ) where
 
@@ -60,10 +60,12 @@ findDbFolder = getCurrentDirectory >>= go where
                                        then return Nothing
                                        else go d'
 
-withDbFolder :: FilePath -> (SiteDb -> IO ()) -> IO ()
-withDbFolder dbf act = do
-  db <- openDb dbf
-  finally (act db) (closeDb db)
+withDb :: (SiteDb -> IO a) -> IO a
+withDb act = findDbFolder >>= \mdbf -> case mdbf of
+  Nothing  -> error "no database found, maybe try \"init\"?"
+  Just dbf -> do
+    db <- openDb dbf
+    finally (act db) (closeDb db)
 
 -----------------------------------------------------------------
 -- working with the DB
@@ -76,7 +78,25 @@ addFile db (absPath, size, hash) = do
   let
     c = mdbConn db
     relPath = makeRelative (mdbBasePath db) absPath
-    q = "REPLACE INTO files (file_name, file_size, sha1) VALUES (?, ?, ?)"
+    q = "REPLACE INTO files (file_name, file_size, file_sha1) VALUES (?, ?, ?)"
 
   SQL.execute c q (relPath, size, hash)
+
+updateFileUri :: SiteDb -> FilePath -> String -> IO ()
+updateFileUri db absPath uri = do
+  let
+    c = mdbConn db
+    relPath = makeRelative (mdbBasePath db) absPath
+    q = "UPDATE files SET file_uri = ?, file_last_insert = NULL WHERE file_name = ?"
+    
+  SQL.execute c q (uri, relPath)
+
+insertDone :: SiteDb -> FilePath -> IO ()
+insertDone db absPath = do
+  let
+    c = mdbConn db
+    relPath = makeRelative (mdbBasePath db) absPath
+    q = "UPDATE files SET file_last_insert = datetime('now') WHERE file_name = ?"
+    
+  SQL.execute c q $ SQL.Only relPath
   
