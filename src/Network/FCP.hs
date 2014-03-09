@@ -37,7 +37,7 @@ sendMessage c (Message name fields payload) = do
   case payload of
     Nothing -> write h "EndMessage"
     Just pl -> do
-      field ("DataLength", show $ BSL.length pl)
+--      field ("DataLength", show $ BSL.length pl)
       write h "Data"
       BSL.hPut h pl
       
@@ -118,14 +118,25 @@ data ClientPutData
   | RedirectPut URI
   deriving ( Show )
 
-data ClientRequest =
-  ClientPut
-  { cpdUri         :: String
-  , cpdContentType :: Maybe String
-  , cpdFileName    :: Maybe String
-  , cpdIdentifier  :: String
-  , cpdData        :: ClientPutData
-  }
+uploadFrom :: ClientPutData -> String
+uploadFrom (DirectPut _)   = "direct"
+uploadFrom (DiskPut _)     = "disk"
+uploadFrom (RedirectPut _) = "redirect"
+
+data ClientRequest
+  = ClientPut
+    { cpUri         :: URI
+    , cpContentType :: Maybe String
+    , cpFileName    :: Maybe String
+    , cpIdentifier  :: String
+    , cpData        :: ClientPutData
+    }
+  | ClientPutComplexDir
+    { cpcdUri         :: URI
+    , cpcdIdentifier  :: String
+    , cpcdDefaultName :: Maybe String
+    , cpcdFiles       :: [(String, String, ClientPutData)] -- ^ (name, mime, contents)
+    }
 
 sendRequest :: Connection -> ClientRequest -> IO ()
 sendRequest c (ClientPut uri ct mfn ident d) = do
@@ -134,13 +145,31 @@ sendRequest c (ClientPut uri ct mfn ident d) = do
              (case ct of
                Just ct' -> [("Metadata.ContentType", ct')]
                Nothing -> []) ++
-             [("UploadFrom", case d of
-                 DirectPut _   -> "direct"
-                 DiskPut _     -> "disk"
-                 RedirectPut _ -> "redirect")] ++
+             [("UploadFrom", uploadFrom d)] ++
              (maybe [] (\fn -> [("TargetFilename", fn)]) mfn)
     
   case d of
-    DirectPut bs -> sendMessage c $ mkMessage "ClientPut" fields (Just bs)
+    DirectPut bs -> sendMessage c $ mkMessage "ClientPut" (("DataLength", show $ BSL.length bs) : fields) (Just bs)
     x -> error $ show x
+sendRequest c (ClientPutComplexDir uri ident defn files) = do
+  let
+    file (num, (name, mime, cont)) =
+      [ (p "Name", name)
+      , (p "UploadFrom", uploadFrom cont)
+      , (p "Metadata.ContentType", mime)
+      ] ++ dl where
+        p f = "Files." ++ (show num) ++ "." ++ f
+        dl = case cont of
+          DirectPut bs -> [(p "DataLength", show $ BSL.length bs)]
+          _            -> []
+        
+    fields = [("URI", uri), ("Identifier", ident), ("Verbosity", "1")] ++
+             (maybe [] (\dn -> [("DefaultName", dn)]) defn) ++
+             concatMap file (zip [(0 :: Int) .. ] files)
+    d = foldl (\sofar (_, _, cnt) -> case cnt of
+                  DirectPut bs -> BSL.append sofar bs
+                  _            -> sofar) BSL.empty files
+
+  print fields
+  sendMessage c $ mkMessage "ClientPutComplexDir" fields (Just d)
   
