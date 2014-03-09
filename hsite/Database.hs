@@ -9,11 +9,12 @@ module Database (
   
   ) where
 
+import Control.Applicative ( (<$>) )
 import Control.Exception ( finally )
 import qualified Data.ByteString as BS
 import qualified Data.Text.IO as TIO
 import qualified Database.SQLite.Simple as SQL
-import System.Directory ( createDirectory, doesDirectoryExist, getCurrentDirectory )
+import System.Directory ( canonicalizePath, createDirectory, doesDirectoryExist, getCurrentDirectory )
 import System.FilePath ( (</>), makeRelative, takeDirectory )
 
 import Paths_h_fcp
@@ -71,42 +72,45 @@ withDb act = findDbFolder >>= \mdbf -> case mdbf of
 -- working with the DB
 -----------------------------------------------------------------
 
+relPath :: SiteDb -> FilePath -> IO FilePath
+relPath db p = makeRelative (mdbBasePath db) <$> canonicalizePath p
+
 type FileInfo = (FilePath, Integer, BS.ByteString)
 
 needsInsert :: SiteDb -> FileInfo -> IO Bool
 needsInsert db (absPath, size, hash) = do
   let
     c = mdbConn db
-    relPath = makeRelative (mdbBasePath db) absPath
     q = "SELECT 1 FROM files WHERE file_name = ? AND file_size = ? AND file_sha1 = ? AND file_last_insert NOT NULL"
-
-  xs <- SQL.query c q (relPath, size, hash) :: IO [SQL.Only Int]
+    
+  p <- relPath db absPath
+  xs <- SQL.query c q (p, size, hash) :: IO [SQL.Only Int]
   return $ null xs
   
 addFile :: SiteDb -> FileInfo -> IO ()
 addFile db (absPath, size, hash) = do
   let
     c = mdbConn db
-    relPath = makeRelative (mdbBasePath db) absPath
     q = "REPLACE INTO files (file_name, file_size, file_sha1) VALUES (?, ?, ?)"
-
-  SQL.execute c q (relPath, size, hash)
+    
+  p <- relPath db absPath
+  SQL.execute c q (p, size, hash)
 
 updateFileUri :: SiteDb -> FilePath -> String -> IO ()
 updateFileUri db absPath uri = do
   let
     c = mdbConn db
-    relPath = makeRelative (mdbBasePath db) absPath
     q = "UPDATE files SET file_last_insert = CASE WHEN file_uri != ? THEN NULL ELSE file_uri END, file_uri = ? WHERE file_name = ?"
-    
-  SQL.execute c q (uri, uri, relPath)
+
+  p <- relPath db absPath    
+  SQL.execute c q (uri, uri, p)
 
 insertDone :: SiteDb -> FilePath -> IO ()
 insertDone db absPath = do
   let
     c = mdbConn db
-    relPath = makeRelative (mdbBasePath db) absPath
     q = "UPDATE files SET file_last_insert = datetime('now') WHERE file_name = ?"
-    
-  SQL.execute c q $ SQL.Only relPath
+
+  p <- relPath db absPath
+  SQL.execute c q $ SQL.Only p
   
