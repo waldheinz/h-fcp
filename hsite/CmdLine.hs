@@ -4,13 +4,15 @@ module CmdLine (
   ) where
 
 data Mode
-     = Init (Maybe FilePath)
+     = GenKeys
+     | Init (Maybe FilePath)
      | InsertChk
      | InsertFiles [FilePath]
      | Status
      deriving ( Show )
 
 parseMode :: [String] -> Either String Mode
+parseMode ("keygen" : _) = Right $ GenKeys
 parseMode ("init" : []) = Right $ Init Nothing
 parseMode ("init" : d : _) = Right $ Init $ Just d
 parseMode ("insertChk" : _) = Right $ InsertChk

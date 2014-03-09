@@ -180,4 +180,4 @@ sendRequest c (ClientPutComplexDir uri ident defn files) = do
   sendMessage c $ mkMessage "ClientPutComplexDir" fields (Just d)
   
 sendRequest c (GenerateSsk mi) = 
-  sendMessage c $ mkMessage "GenerateSsk" (maybe [] (\i -> [("Identifier", i)]) mi) Nothing
+  sendMessage c $ mkMessage "GenerateSSK" (maybe [] (\i -> [("Identifier", i)]) mi) Nothing

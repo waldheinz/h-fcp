@@ -6,11 +6,14 @@ module Database (
   
   -- * working with the DB
   needsInsert, addFile, updateFileUri, insertDone, getFileState,
-  relPath
+  relPath,
+
+  -- * other metadata
+  loadKeys, saveKeys
   ) where
 
 import Control.Applicative ( (<$>) )
-import Control.Exception ( finally )
+import Control.Exception ( catch, finally, IOException )
 import qualified Data.ByteString as BS
 import qualified Data.Text.IO as TIO
 import Data.Time ( UTCTime )
@@ -126,3 +129,19 @@ insertDone db absPath uri = do
   p <- relPath db absPath
   SQL.execute c q $ (uri, p)
   
+--------------------------------------------------------------------
+-- Working with other files in the metadata dir
+--------------------------------------------------------------------
+
+keysFile :: SiteDb -> FilePath
+keysFile db = (dbDir $ siteBasePath db) </> "keys"
+
+saveKeys :: SiteDb -> (String, String) -> IO ()
+saveKeys db keys = writeFile (keysFile db) (show keys)
+
+loadKeys :: SiteDb -> IO (Maybe (String, String))
+loadKeys db = catch ((readFile (keysFile db)) >>= return . Just . read)
+              (\e -> do
+                  print (e :: IOException)
+                  return Nothing)
+              
