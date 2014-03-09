@@ -16,8 +16,9 @@ runMode (CMD.Init mp) = do
     Nothing -> getCurrentDirectory
   
   DB.initDb p
-  
-runMode (CMD.InsertFiles files) = DB.withDb (\db -> mapM_ (INS.insertChk db) files)
+
+runMode (CMD.InsertChk) = DB.withDb $ \db -> INS.insertSite db
+runMode (CMD.InsertFiles files) = DB.withDb $ \db -> mapM_ (INS.insertChk db) files
 runMode (CMD.Status) = DB.withDb $ \db -> do
   INS.traverseFiles (DB.siteBasePath db) $ \file -> do
     INS.checkInsertState db file >>= \st -> putStrLn $ file ++ ": " ++ show st

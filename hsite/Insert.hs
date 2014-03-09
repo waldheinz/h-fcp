@@ -1,6 +1,6 @@
 
 module Insert (
-  checkInsertState, insertChk, traverseFiles,
+  InsertState(..), checkInsertState, insertChk, insertSite, traverseFiles,
   ) where
 
 import Control.Monad ( forM, unless, when )
@@ -8,6 +8,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BSC
 import qualified Data.ByteString.Lazy as BSL
 import Data.Digest.Pure.SHA ( bytestringDigest, sha1 )
+import Data.IORef
 import Data.Maybe ( catMaybes )
 import qualified Data.Text as Text
 import qualified Network.FCP as FCP
@@ -56,6 +57,59 @@ traverseFiles fp act = do
 
   return $ concat rs
 
+insertSite :: DB.SiteDb -> IO ()
+insertSite db = do
+  todo <- traverseFiles (DB.siteBasePath db) $ \file -> do
+    p <- DB.relPath db file
+    checkInsertState db file >>= \st -> case st of
+      UpToDate uri -> return (p, fileMime file, FCP.RedirectPut uri)
+      _ -> do
+        cont <- BSL.readFile file
+        return (p, fileMime file, FCP.DirectPut cont)
+
+  conn <- FCP.connect "hsite-insert" "127.0.0.1" 9481
+  FCP.sendRequest conn $ FCP.ClientPutComplexDir "CHK@" "bar" (Just "index.html") todo
+  trackPutProgress conn >>= \result -> case result of
+    PutFailed -> putStrLn "ouch, put failed"
+    PutSuccess uri -> putStrLn uri
+    
+fileMime :: FilePath -> String
+fileMime = BSC.unpack . defaultMimeLookup . Text.pack
+
+data PutResult
+  = PutSuccess String
+  | PutFailed
+
+trackPutProgress :: FCP.Connection -> IO PutResult
+trackPutProgress conn = do
+  result <- newIORef PutFailed
+  
+  FCP.processMessages conn $ \msg -> case FCP.msgName msg of
+    "URIGenerated" -> clearProgress >> case FCP.msgField "URI" msg of
+      Nothing  -> error "got no URI in URIGenerated message?!"
+      Just uri -> putStrLn uri >> hFlush stdout >> return True
+    
+    "SimpleProgress" -> do
+      let
+        cur = FCP.msgField "Succeeded" msg >>= readMaybe
+        tot = FCP.msgField "Total" msg >>= readMaybe
+
+      case (cur, tot) of
+        (Just c, Just t) -> drawProgress c t
+        _                -> return ()
+      return True
+      
+    "PutSuccessful" -> do
+      case FCP.msgField "URI" msg of
+        Nothing  -> putStrLn "no URI in PutSuccess message?!"
+        Just uri -> writeIORef result $ PutSuccess uri
+      return False
+      
+    "PutFailed" -> putStrLn "put FAILED" >> return False
+    _ -> return True
+
+  readIORef result
+
 insertChk :: DB.SiteDb -> FilePath -> IO ()
 insertChk db fn = do
   conn <- FCP.connect "hsite" "127.0.0.1" 9481
@@ -64,25 +118,12 @@ insertChk db fn = do
     size <- hFileSize fh
     
     let
-      mime = Just $ BSC.unpack $ defaultMimeLookup $ Text.pack fn
+      mime = Just $ fileMime fn
       fi = (fn, size, BSL.toStrict $ bytestringDigest $ sha1 cont)
 
     DB.needsInsert db fi >>= \ni -> when ni $ do
       DB.addFile db fi
       FCP.sendRequest conn $ FCP.ClientPut "CHK@" mime (Just fn) "foo" (FCP.DirectPut cont)
-      FCP.processMessages conn $ \msg -> case FCP.msgName msg of
-        "URIGenerated" -> clearProgress >> case FCP.msgField "URI" msg of
-            Nothing  -> error "got no URI in URIGenerated message?!"
-            Just uri -> putStrLn uri >> hFlush stdout >> DB.updateFileUri db fn uri >> return True
-        "SimpleProgress" -> do
-          let
-            cur = FCP.msgField "Succeeded" msg >>= readMaybe
-            tot = FCP.msgField "Total" msg >>= readMaybe
-
-          case (cur, tot) of
-            (Just c, Just t) -> drawProgress c t
-            _                -> return ()
-          return True
-        "PutSuccessful" -> DB.insertDone db fn >> return False
-        "PutFailed" -> putStrLn "put FAILED" >> return False
-        _ -> return True
+      trackPutProgress conn >>= \result -> case result of
+        PutFailed -> putStrLn "put failed, sorry"
+        PutSuccess uri -> DB.insertDone db fn uri

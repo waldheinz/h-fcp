@@ -5,7 +5,8 @@ module Database (
   SiteDb, withDb, initDb, siteBasePath,
   
   -- * working with the DB
-  needsInsert, addFile, updateFileUri, insertDone, getFileState
+  needsInsert, addFile, updateFileUri, insertDone, getFileState,
+  relPath
   ) where
 
 import Control.Applicative ( (<$>) )
@@ -116,12 +117,12 @@ updateFileUri db absPath uri = do
   p <- relPath db absPath    
   SQL.execute c q (uri, uri, p)
 
-insertDone :: SiteDb -> FilePath -> IO ()
-insertDone db absPath = do
+insertDone :: SiteDb -> FilePath -> String -> IO ()
+insertDone db absPath uri = do
   let
     c = mdbConn db
-    q = "UPDATE files SET file_last_insert = datetime('now') WHERE file_name = ?"
+    q = "UPDATE files SET file_last_insert = datetime('now'), file_uri = ? WHERE file_name = ?"
 
   p <- relPath db absPath
-  SQL.execute c q $ SQL.Only p
+  SQL.execute c q $ (uri, p)
   

@@ -157,11 +157,16 @@ sendRequest c (ClientPutComplexDir uri ident defn files) = do
       [ (p "Name", name)
       , (p "UploadFrom", uploadFrom cont)
       , (p "Metadata.ContentType", mime)
-      ] ++ dl where
+      ] ++ dl ++ tgt where
         p f = "Files." ++ (show num) ++ "." ++ f
         dl = case cont of
           DirectPut bs -> [(p "DataLength", show $ BSL.length bs)]
           _            -> []
+        tgt = case cont of
+          RedirectPut target -> [(p "TargetURI", target)]
+          _               -> []
+
+        
         
     fields = [("URI", uri), ("Identifier", ident), ("Verbosity", "1")] ++
              (maybe [] (\dn -> [("DefaultName", dn)]) defn) ++
