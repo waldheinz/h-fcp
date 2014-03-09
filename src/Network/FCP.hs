@@ -137,7 +137,10 @@ data ClientRequest
     , cpcdDefaultName :: Maybe String
     , cpcdFiles       :: [(String, String, ClientPutData)] -- ^ (name, mime, contents)
     }
-
+  | GenerateSsk
+    { gsIdentifier :: Maybe String -- ^ request identifier
+    }
+    
 sendRequest :: Connection -> ClientRequest -> IO ()
 sendRequest c (ClientPut uri ct mfn ident d) = do
   let
@@ -176,3 +179,5 @@ sendRequest c (ClientPutComplexDir uri ident defn files) = do
 
   sendMessage c $ mkMessage "ClientPutComplexDir" fields (Just d)
   
+sendRequest c (GenerateSsk mi) = 
+  sendMessage c $ mkMessage "GenerateSsk" (maybe [] (\i -> [("Identifier", i)]) mi) Nothing
