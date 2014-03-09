@@ -3,17 +3,16 @@ module Insert (
   InsertState(..), checkInsertState, insertChk, insertSite, traverseFiles,
   ) where
 
-import Control.Monad ( forM, unless, when )
+import Control.Monad ( forM, forM_, when )
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BSC
 import qualified Data.ByteString.Lazy as BSL
 import Data.Digest.Pure.SHA ( bytestringDigest, sha1 )
 import Data.IORef
-import Data.Maybe ( catMaybes )
 import qualified Data.Text as Text
 import qualified Network.FCP as FCP
 import Network.Mime ( defaultMimeLookup )
-import System.Directory ( doesDirectoryExist, getCurrentDirectory, getDirectoryContents )
+import System.Directory ( doesDirectoryExist, getDirectoryContents )
 import System.FilePath ( (</>) )
 import System.IO ( hFileSize, hFlush, stdout, withFile, IOMode(..) )
 import Text.Read ( readMaybe )
@@ -62,16 +61,20 @@ insertSite db = do
   todo <- traverseFiles (DB.siteBasePath db) $ \file -> do
     p <- DB.relPath db file
     checkInsertState db file >>= \st -> case st of
-      UpToDate uri -> return (p, fileMime file, FCP.RedirectPut uri)
-      _ -> do
-        cont <- BSL.readFile file
-        return (p, fileMime file, FCP.DirectPut cont)
+      UpToDate uri -> return (file, (p, fileMime file, FCP.RedirectPut uri))
+      _ -> withFile file ReadMode $ \fh -> do
+        cont <- BSL.hGetContents fh
+        size <- hFileSize fh
+        DB.addFile db (file, size, hashContents cont)
+        return (file, (p, fileMime file, FCP.DirectPut cont))
 
   conn <- FCP.connect "hsite-insert" "127.0.0.1" 9481
-  FCP.sendRequest conn $ FCP.ClientPutComplexDir "CHK@" "bar" (Just "index.html") todo
+  FCP.sendRequest conn $ FCP.ClientPutComplexDir "CHK@" "bar" (Just "index.html") $ map snd todo
   trackPutProgress conn >>= \result -> case result of
     PutFailed -> putStrLn "ouch, put failed"
-    PutSuccess uri -> putStrLn uri
+    PutSuccess uri -> forM_ todo $ \(file, (p, _, t)) -> case t of
+      FCP.RedirectPut _ -> return ()
+      _                 -> DB.insertDone db file $ uri ++ "/" ++ p
     
 fileMime :: FilePath -> String
 fileMime = BSC.unpack . defaultMimeLookup . Text.pack
@@ -119,11 +122,11 @@ insertChk db fn = do
     
     let
       mime = Just $ fileMime fn
-      fi = (fn, size, BSL.toStrict $ bytestringDigest $ sha1 cont)
+      fi = (fn, size, hashContents cont)
 
     DB.needsInsert db fi >>= \ni -> when ni $ do
       DB.addFile db fi
-      FCP.sendRequest conn $ FCP.ClientPut "CHK@" mime (Just fn) "foo" (FCP.DirectPut cont)
+      FCP.sendRequest conn $ FCP.ClientPut "CHK@" mime Nothing "foo" (FCP.DirectPut cont)
       trackPutProgress conn >>= \result -> case result of
         PutFailed -> putStrLn "put failed, sorry"
         PutSuccess uri -> DB.insertDone db fn uri

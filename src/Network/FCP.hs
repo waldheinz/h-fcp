@@ -151,6 +151,7 @@ sendRequest c (ClientPut uri ct mfn ident d) = do
   case d of
     DirectPut bs -> sendMessage c $ mkMessage "ClientPut" (("DataLength", show $ BSL.length bs) : fields) (Just bs)
     x -> error $ show x
+    
 sendRequest c (ClientPutComplexDir uri ident defn files) = do
   let
     file (num, (name, mime, cont)) =
@@ -166,8 +167,6 @@ sendRequest c (ClientPutComplexDir uri ident defn files) = do
           RedirectPut target -> [(p "TargetURI", target)]
           _               -> []
 
-        
-        
     fields = [("URI", uri), ("Identifier", ident), ("Verbosity", "1")] ++
              (maybe [] (\dn -> [("DefaultName", dn)]) defn) ++
              concatMap file (zip [(0 :: Int) .. ] files)
@@ -175,6 +174,5 @@ sendRequest c (ClientPutComplexDir uri ident defn files) = do
                   DirectPut bs -> BSL.append sofar bs
                   _            -> sofar) BSL.empty files
 
-  print fields
   sendMessage c $ mkMessage "ClientPutComplexDir" fields (Just d)
   
