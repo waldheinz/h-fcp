@@ -55,4 +55,5 @@ executable hsite
     SHA           >= 1.6,
     sqlite-simple >= 0.4,
     text          >= 0.11,
+    time          >= 1.4,
     h-fcp

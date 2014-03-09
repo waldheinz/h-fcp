@@ -18,7 +18,11 @@ runMode (CMD.Init mp) = do
   DB.initDb p
   
 runMode (CMD.InsertFiles files) = DB.withDb (\db -> mapM_ (INS.insertChk db) files)
-
+runMode (CMD.Status) = DB.withDb $ \db -> do
+  INS.traverseFiles (DB.siteBasePath db) $ \file -> do
+    INS.checkInsertState db file >>= \st -> putStrLn $ file ++ ": " ++ show st
+  return ()
+  
 main :: IO ()
 main = do
   mode <- CMD.parseMode <$> getArgs

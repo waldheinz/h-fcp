@@ -1,20 +1,60 @@
 
 module Insert (
-  insertChk
+  checkInsertState, insertChk, traverseFiles,
   ) where
 
-import Control.Monad ( when )
+import Control.Monad ( forM, unless, when )
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BSC
 import qualified Data.ByteString.Lazy as BSL
 import Data.Digest.Pure.SHA ( bytestringDigest, sha1 )
+import Data.Maybe ( catMaybes )
 import qualified Data.Text as Text
 import qualified Network.FCP as FCP
 import Network.Mime ( defaultMimeLookup )
+import System.Directory ( doesDirectoryExist, getCurrentDirectory, getDirectoryContents )
+import System.FilePath ( (</>) )
 import System.IO ( hFileSize, hFlush, stdout, withFile, IOMode(..) )
 import Text.Read ( readMaybe )
 
 import qualified Database as DB
 import Progress
+
+hashContents :: BSL.ByteString -> BS.ByteString
+hashContents = BSL.toStrict . bytestringDigest . sha1
+
+data InsertState
+  = Fresh
+  | LocalChange 
+  | UpToDate String
+  deriving ( Show )
+
+checkInsertState :: DB.SiteDb -> FilePath -> IO InsertState
+checkInsertState db file = DB.getFileState db file >>= \fs -> case fs of
+  Nothing -> return Fresh
+  Just state -> case state of
+    (size, hash, Just uri, Just _) -> withFile file ReadMode $ \fh -> do
+      size' <- hFileSize fh
+      if size /= size'
+        then return LocalChange
+        else do
+          cont <- BSL.hGetContents fh
+          if hash == hashContents cont
+            then return $ UpToDate uri
+            else return LocalChange
+    _ -> return Fresh
+  
+traverseFiles :: FilePath -> (FilePath -> IO a) -> IO [a]
+traverseFiles fp act = do
+  cs <- getDirectoryContents fp
+  rs <- forM cs $ \c -> doesDirectoryExist (fp </> c) >>= \dir ->
+    if dir
+    then if (c == "." || c == ".." || c == ".hsite")
+         then return []
+         else traverseFiles (fp </> c) act
+    else act (fp </> c) >>= \r -> return [r]
+
+  return $ concat rs
 
 insertChk :: DB.SiteDb -> FilePath -> IO ()
 insertChk db fn = do

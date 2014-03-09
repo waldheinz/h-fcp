@@ -2,17 +2,17 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Database (
-  SiteDb, withDb, initDb,
+  SiteDb, withDb, initDb, siteBasePath,
   
   -- * working with the DB
-  needsInsert, addFile, updateFileUri, insertDone
-  
+  needsInsert, addFile, updateFileUri, insertDone, getFileState
   ) where
 
 import Control.Applicative ( (<$>) )
 import Control.Exception ( finally )
 import qualified Data.ByteString as BS
 import qualified Data.Text.IO as TIO
+import Data.Time ( UTCTime )
 import qualified Database.SQLite.Simple as SQL
 import System.Directory ( canonicalizePath, createDirectory, doesDirectoryExist, getCurrentDirectory )
 import System.FilePath ( (</>), makeRelative, takeDirectory )
@@ -23,8 +23,8 @@ dbDir :: FilePath -> FilePath
 dbDir base = base </> ".hsite"
 
 data SiteDb = MDB
-               { mdbConn     :: SQL.Connection
-               , mdbBasePath :: FilePath
+               { mdbConn      :: SQL.Connection
+               , siteBasePath :: FilePath
                }
 
 initDb :: FilePath -> IO ()
@@ -73,8 +73,20 @@ withDb act = findDbFolder >>= \mdbf -> case mdbf of
 -----------------------------------------------------------------
 
 relPath :: SiteDb -> FilePath -> IO FilePath
-relPath db p = makeRelative (mdbBasePath db) <$> canonicalizePath p
+relPath db p = makeRelative (siteBasePath db) <$> canonicalizePath p
 
+getFileState :: SiteDb -> FilePath -> IO (Maybe (Integer, BS.ByteString, Maybe String, Maybe UTCTime))
+getFileState db absPath = do
+  let
+    c = mdbConn db
+    q = "SELECT file_size, file_sha1, file_uri, file_last_insert FROM files WHERE file_name = ?"
+  
+  p <- relPath db absPath
+  r <- SQL.query c q $ SQL.Only p
+  return $ if null r
+           then Nothing
+           else Just $ head r
+  
 type FileInfo = (FilePath, Integer, BS.ByteString)
 
 needsInsert :: SiteDb -> FileInfo -> IO Bool
@@ -84,8 +96,7 @@ needsInsert db (absPath, size, hash) = do
     q = "SELECT 1 FROM files WHERE file_name = ? AND file_size = ? AND file_sha1 = ? AND file_last_insert NOT NULL"
     
   p <- relPath db absPath
-  xs <- SQL.query c q (p, size, hash) :: IO [SQL.Only Int]
-  return $ null xs
+  (SQL.query c q (p, size, hash) :: IO [SQL.Only Int]) >>= return . null
   
 addFile :: SiteDb -> FileInfo -> IO ()
 addFile db (absPath, size, hash) = do
