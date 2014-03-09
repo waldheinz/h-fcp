@@ -78,7 +78,7 @@ needsInsert db (absPath, size, hash) = do
   let
     c = mdbConn db
     relPath = makeRelative (mdbBasePath db) absPath
-    q = "SELECT 1 FROM files WHERE file_name = ? AND file_size = ? AND file_sha1 = ? AND file_last_insert == NULL"
+    q = "SELECT 1 FROM files WHERE file_name = ? AND file_size = ? AND file_sha1 = ? AND file_last_insert NOT NULL"
 
   xs <- SQL.query c q (relPath, size, hash) :: IO [SQL.Only Int]
   return $ null xs
