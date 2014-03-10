@@ -71,7 +71,7 @@ insertSite db siteUri = do
   conn <- FCP.connect "hsite-insert" "127.0.0.1" 9481
   FCP.sendRequest conn $ FCP.ClientPutComplexDir siteUri "bar" (Just "index.html") $ map snd todo
   trackPutProgress conn >>= \result -> case result of
-    PutFailed      -> error "put failed"
+    PutFailed  e   -> error $ "put failed: " ++ e
     PutSuccess uri -> forM_ todo $ \(file, (p, _, t)) -> case t of
       FCP.RedirectPut _ -> return ()
       _                 -> DB.insertDone db file $ uri ++ "/" ++ p
@@ -81,11 +81,11 @@ fileMime = BSC.unpack . defaultMimeLookup . Text.pack
 
 data PutResult
   = PutSuccess String
-  | PutFailed
+  | PutFailed String
 
 trackPutProgress :: FCP.Connection -> IO PutResult
 trackPutProgress conn = do
-  result <- newIORef PutFailed
+  result <- newIORef $ PutFailed "unknown error"
   
   FCP.processMessages conn $ \msg -> case FCP.msgName msg of
     "URIGenerated" -> clearProgress >> case FCP.msgField "URI" msg of
@@ -108,7 +108,12 @@ trackPutProgress conn = do
         Just uri -> writeIORef result $ PutSuccess uri
       return False
       
-    "PutFailed" -> print msg >> return False
+    "PutFailed" -> do
+      let e = FCP.msgField "CodeDescription" msg
+      case e of
+        Nothing -> return ()
+        Just m  -> writeIORef result $ PutFailed m
+      return False
     _ -> return True
 
   readIORef result
@@ -128,5 +133,5 @@ insertChk db fn = do
       DB.addFile db fi
       FCP.sendRequest conn $ FCP.ClientPut "CHK@" mime Nothing "foo" (FCP.DirectPut cont)
       trackPutProgress conn >>= \result -> case result of
-        PutFailed -> putStrLn "put failed, sorry"
+        PutFailed m    -> error $ "put failed: " ++ m
         PutSuccess uri -> DB.insertDone db fn uri

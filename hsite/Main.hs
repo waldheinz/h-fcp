@@ -82,16 +82,14 @@ runMode (CMD.Status) = DB.withDb $ \db -> do
         s :: Int -> String
         s d = printf "%.2f" (fromIntegral sz / (fromIntegral d :: Float))
         
-    size sz = " (" ++ (pretty sz) ++ ")"
-  
   tot <- forM list $ \(file, st, sz) -> do
     p <- makeRelativeToCurrentDirectory file
     case st of
       INS.UpToDate _  -> return 0
-      INS.Fresh       -> (putStrLn $ "     fresh: " ++ p ++ size sz) >> return sz
-      INS.LocalChange -> (putStrLn $ "  modified: " ++ p ++ size sz) >> return sz
+      INS.Fresh       -> (putStrLn $ "     fresh: " ++ p ++ " (" ++ pretty sz ++ ")") >> return sz
+      INS.LocalChange -> (putStrLn $ "  modified: " ++ p ++ " (" ++ pretty sz ++ ")") >> return sz
 
-  putStrLn $ size $ sum tot
+  putStrLn $ (pretty $ sum tot) ++ " in " ++ (show $ length tot) ++ " files."
   
 main :: IO ()
 main = do
