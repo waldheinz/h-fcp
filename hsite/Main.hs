@@ -7,11 +7,11 @@ import qualified Network.FCP as FCP
 import System.Directory ( getCurrentDirectory, makeRelativeToCurrentDirectory )
 import System.Environment ( getArgs )
 import System.Posix ( getFileStatus, fileSize, FileOffset )
-import Text.Printf ( printf )
 
 import qualified CmdLine as CMD
 import qualified Database as DB
 import qualified Insert as INS
+import Utils ( prettySize )
 
 getNode :: IO (String, Int)
 getNode = return ("127.0.0.1", 9481)
@@ -72,16 +72,8 @@ runMode (CMD.Status) = DB.withDb $ \db -> do
   
   putStrLn $ "Files needing an insert:"
 
-  let
-    pretty sz
-      | sz < 1024               = s 1 ++ " B"
-      | sz < 1024 * 1024        = s 1024 ++ " KiB"
-      | sz < 1024 * 1024 * 1024 = (s (1024 * 1024)) ++ " MiB"
-      | otherwise = (s (1024 * 1024 * 1024)) ++ " GiB"
-      where
-        s :: Int -> String
-        s d = printf "%.2f" (fromIntegral sz / (fromIntegral d :: Float))
-        
+  let pretty = prettySize
+  
   tot <- forM list $ \(file, st, sz) -> do
     p <- makeRelativeToCurrentDirectory file
     case st of
@@ -89,7 +81,8 @@ runMode (CMD.Status) = DB.withDb $ \db -> do
       INS.Fresh       -> (putStrLn $ "     fresh: " ++ p ++ " (" ++ pretty sz ++ ")") >> return sz
       INS.LocalChange -> (putStrLn $ "  modified: " ++ p ++ " (" ++ pretty sz ++ ")") >> return sz
 
-  putStrLn $ (pretty $ sum tot) ++ " in " ++ (show $ length tot) ++ " files."
+  putStrLn $ (pretty $ sum tot) ++ " in " ++ (show . length $ filter (> 0) tot) ++ " files."
+  putStrLn ""
   
 main :: IO ()
 main = do

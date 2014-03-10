@@ -10,6 +10,7 @@ import qualified Data.ByteString.Lazy as BSL
 import Data.Digest.Pure.SHA ( bytestringDigest, sha1 )
 import Data.IORef
 import qualified Data.Text as Text
+import Data.Time.Clock ( diffUTCTime, getCurrentTime )
 import qualified Network.FCP as FCP
 import Network.Mime ( defaultMimeLookup )
 import System.Directory ( doesDirectoryExist, getDirectoryContents )
@@ -19,6 +20,7 @@ import Text.Read ( readMaybe )
 
 import qualified Database as DB
 import Progress
+import Utils ( prettySize )
 
 hashContents :: BSL.ByteString -> BS.ByteString
 hashContents = BSL.toStrict . bytestringDigest . sha1
@@ -121,9 +123,11 @@ trackPutProgress conn = do
 insertChk :: DB.SiteDb -> FilePath -> IO ()
 insertChk db fn = do
   conn <- FCP.connect "hsite" "127.0.0.1" 9481
+  
   withFile fn ReadMode $ \fh -> do
     cont <- BSL.hGetContents fh
     size <- hFileSize fh
+    start <- getCurrentTime
     
     let
       mime = Just $ fileMime fn
@@ -134,4 +138,8 @@ insertChk db fn = do
       FCP.sendRequest conn $ FCP.ClientPut "CHK@" mime Nothing "foo" (FCP.DirectPut cont)
       trackPutProgress conn >>= \result -> case result of
         PutFailed m    -> error $ "put failed: " ++ m
-        PutSuccess uri -> DB.insertDone db fn uri
+        PutSuccess uri -> do
+          DB.insertDone db fn uri
+          end <- getCurrentTime
+          let dt = realToFrac $ diffUTCTime end start :: Double
+          putStrLn $ "insert took " ++ show dt ++ "s (" ++ prettySize (round $ (fromIntegral size) / dt :: Integer) ++ "/s)"
