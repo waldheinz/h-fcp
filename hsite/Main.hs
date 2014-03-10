@@ -2,9 +2,12 @@
 module Main ( main ) where
 
 import Control.Applicative ( (<$>) )
+import Control.Monad ( forM )
 import qualified Network.FCP as FCP
-import System.Directory ( getCurrentDirectory )
+import System.Directory ( getCurrentDirectory, makeRelativeToCurrentDirectory )
 import System.Environment ( getArgs )
+import System.Posix ( getFileStatus, fileSize, FileOffset )
+import Text.Printf ( printf )
 
 import qualified CmdLine as CMD
 import qualified Database as DB
@@ -12,6 +15,11 @@ import qualified Insert as INS
 
 getNode :: IO (String, Int)
 getNode = return ("127.0.0.1", 9481)
+
+getFileSize :: String -> IO FileOffset
+getFileSize path = do
+    stat <- getFileStatus path
+    return (fileSize stat)
 
 runMode :: CMD.Mode -> IO ()
 runMode (CMD.GenKeys name) = DB.withDb $ \db -> do
@@ -57,9 +65,33 @@ runMode (CMD.Insert chk) = DB.withDb $ \db ->
       
 runMode (CMD.InsertFiles files) = DB.withDb $ \db -> mapM_ (INS.insertChk db) files
 runMode (CMD.Status) = DB.withDb $ \db -> do
-  _ <- INS.traverseFiles (DB.siteBasePath db) $ \file -> do
-    INS.checkInsertState db file >>= \st -> putStrLn $ file ++ ": " ++ show st
-  return ()
+  list <- INS.traverseFiles (DB.siteBasePath db) $ \file -> do
+    st <- INS.checkInsertState db file
+    sz <- getFileSize file
+    return (file, st, sz)
+  
+  putStrLn $ "Files needing an insert:"
+
+  let
+    pretty sz
+      | sz < 1024               = s 1 ++ " B"
+      | sz < 1024 * 1024        = s 1024 ++ " KiB"
+      | sz < 1024 * 1024 * 1024 = (s (1024 * 1024)) ++ " MiB"
+      | otherwise = (s (1024 * 1024 * 1024)) ++ " GiB"
+      where
+        s :: Int -> String
+        s d = printf "%.2f" (fromIntegral sz / (fromIntegral d :: Float))
+        
+    size sz = " (" ++ (pretty sz) ++ ")"
+  
+  tot <- forM list $ \(file, st, sz) -> do
+    p <- makeRelativeToCurrentDirectory file
+    case st of
+      INS.UpToDate _  -> return 0
+      INS.Fresh       -> (putStrLn $ "     fresh: " ++ p ++ size sz) >> return sz
+      INS.LocalChange -> (putStrLn $ "  modified: " ++ p ++ size sz) >> return sz
+
+  putStrLn $ size $ sum tot
   
 main :: IO ()
 main = do
