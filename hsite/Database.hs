@@ -136,10 +136,10 @@ insertDone db absPath uri = do
 keysFile :: SiteDb -> FilePath
 keysFile db = (dbDir $ siteBasePath db) </> "keys"
 
-saveKeys :: SiteDb -> (String, String) -> IO ()
-saveKeys db keys = writeFile (keysFile db) (show keys)
+saveKeys :: SiteDb -> (String, Int, String, String) -> IO ()
+saveKeys db keys = writeFile (keysFile db) $ show keys
 
-loadKeys :: SiteDb -> IO (Maybe (String, String))
+loadKeys :: SiteDb -> IO (Maybe (String, Int, String, String))
 loadKeys db = catch ((readFile (keysFile db)) >>= return . Just . read)
               (\e -> do
                   print (e :: IOException)

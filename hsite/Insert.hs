@@ -56,8 +56,8 @@ traverseFiles fp act = do
 
   return $ concat rs
 
-insertSite :: DB.SiteDb -> IO ()
-insertSite db = do
+insertSite :: DB.SiteDb -> String -> IO ()
+insertSite db siteUri = do
   todo <- traverseFiles (DB.siteBasePath db) $ \file -> do
     p <- DB.relPath db file
     checkInsertState db file >>= \st -> case st of
@@ -69,7 +69,7 @@ insertSite db = do
         return (file, (p, fileMime file, FCP.DirectPut cont))
 
   conn <- FCP.connect "hsite-insert" "127.0.0.1" 9481
-  FCP.sendRequest conn $ FCP.ClientPutComplexDir "CHK@" "bar" (Just "index.html") $ map snd todo
+  FCP.sendRequest conn $ FCP.ClientPutComplexDir siteUri "bar" (Just "index.html") $ map snd todo
   trackPutProgress conn >>= \result -> case result of
     PutFailed -> putStrLn "ouch, put failed"
     PutSuccess uri -> forM_ todo $ \(file, (p, _, t)) -> case t of

@@ -14,7 +14,7 @@ getNode :: IO (String, Int)
 getNode = return ("127.0.0.1", 9481)
 
 runMode :: CMD.Mode -> IO ()
-runMode (CMD.GenKeys) = DB.withDb $ \db -> do
+runMode (CMD.GenKeys name) = DB.withDb $ \db -> do
   mk <- DB.loadKeys db
   case mk of
     Just _  -> putStrLn "you already have generated keys"
@@ -30,7 +30,7 @@ runMode (CMD.GenKeys) = DB.withDb $ \db -> do
             ruri = FCP.msgField "RequestURI" msg
         
           case (iuri, ruri) of
-            (Just i, Just r) -> DB.saveKeys db (i, r)
+            (Just i, Just r) -> DB.saveKeys db (name, 0, i, r)
             _                -> error "message did not contain URIs?!"
 
           return False
@@ -43,7 +43,18 @@ runMode (CMD.Init mp) = do
   
   DB.initDb p
 
-runMode (CMD.InsertChk) = DB.withDb $ \db -> INS.insertSite db
+runMode (CMD.Insert chk) = DB.withDb $ \db ->
+  if chk
+  then INS.insertSite db "CHK@"
+  else DB.loadKeys db >>= \k -> case k of
+    Nothing -> error "you can only do --chk inserts until you generated keys"
+    Just (name, rev, iuri, ruri) -> do
+      let uri = (iuri ++ name ++ "-" ++ show rev)
+      INS.insertSite db uri
+      DB.saveKeys db (name, rev + 1, iuri, ruri)
+      putStrLn $ "your latest revision is at:"
+      putStrLn $ "USK" ++ (drop 3 ruri) ++ name ++ "/" ++ show rev
+      
 runMode (CMD.InsertFiles files) = DB.withDb $ \db -> mapM_ (INS.insertChk db) files
 runMode (CMD.Status) = DB.withDb $ \db -> do
   _ <- INS.traverseFiles (DB.siteBasePath db) $ \file -> do
