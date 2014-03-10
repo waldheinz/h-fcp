@@ -71,7 +71,7 @@ insertSite db siteUri = do
   conn <- FCP.connect "hsite-insert" "127.0.0.1" 9481
   FCP.sendRequest conn $ FCP.ClientPutComplexDir siteUri "bar" (Just "index.html") $ map snd todo
   trackPutProgress conn >>= \result -> case result of
-    PutFailed -> putStrLn "ouch, put failed"
+    PutFailed      -> error "put failed"
     PutSuccess uri -> forM_ todo $ \(file, (p, _, t)) -> case t of
       FCP.RedirectPut _ -> return ()
       _                 -> DB.insertDone db file $ uri ++ "/" ++ p
@@ -108,7 +108,7 @@ trackPutProgress conn = do
         Just uri -> writeIORef result $ PutSuccess uri
       return False
       
-    "PutFailed" -> putStrLn "put FAILED" >> return False
+    "PutFailed" -> print msg >> return False
     _ -> return True
 
   readIORef result
