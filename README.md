@@ -21,6 +21,7 @@ fn_fetch_count		-> Fetch Count
 fn_fetch_success	-> Fetch Success
 fn_opennet_size		-> Opennet Size Estimate
 fn_remotes			-> Remote Transfers
+fn_store_success    -> Store Lookup Success
 ~~~
 
 To generate a graph, just symlink the executable under the desired name to
