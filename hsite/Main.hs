@@ -63,7 +63,11 @@ runMode (CMD.Insert chk) = DB.withDb $ \db ->
       putStrLn $ "your latest revision is at:"
       putStrLn $ "USK" ++ (drop 3 ruri) ++ name ++ "/" ++ show rev
       
-runMode (CMD.InsertFiles files) = DB.withDb $ \db -> mapM_ (INS.insertChk db) files
+runMode (CMD.InsertFiles files) = DB.withDb $ \db -> do
+  (host, port) <- getNode
+  conn <- FCP.connect "hsite-insertChk" host port
+  mapM_ (INS.insertChk conn db) files
+  
 runMode (CMD.Status) = DB.withDb $ \db -> do
   list <- INS.traverseFiles (DB.siteBasePath db) $ \file -> do
     st <- INS.checkInsertState db file

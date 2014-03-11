@@ -120,26 +120,23 @@ trackPutProgress conn = do
 
   readIORef result
 
-insertChk :: DB.SiteDb -> FilePath -> IO ()
-insertChk db fn = do
-  conn <- FCP.connect "hsite" "127.0.0.1" 9481
-  
-  withFile fn ReadMode $ \fh -> do
-    cont <- BSL.hGetContents fh
-    size <- hFileSize fh
-    start <- getCurrentTime
+insertChk :: FCP.Connection -> DB.SiteDb -> FilePath -> IO ()
+insertChk conn db fn = withFile fn ReadMode $ \fh -> do
+  cont <- BSL.hGetContents fh
+  size <- hFileSize fh
+  start <- getCurrentTime
     
-    let
-      mime = Just $ fileMime fn
-      fi = (fn, size, hashContents cont)
+  let
+    mime = Just $ fileMime fn
+    fi = (fn, size, hashContents cont)
 
-    DB.needsInsert db fi >>= \ni -> when ni $ do
-      DB.addFile db fi
-      FCP.sendRequest conn $ FCP.ClientPut "CHK@" mime Nothing "foo" (FCP.DirectPut cont)
-      trackPutProgress conn >>= \result -> case result of
-        PutFailed m    -> error $ "put failed: " ++ m
-        PutSuccess uri -> do
-          DB.insertDone db fn uri
-          end <- getCurrentTime
-          let dt = realToFrac $ diffUTCTime end start :: Double
-          putStrLn $ "insert took " ++ show dt ++ "s (" ++ prettySize (round $ (fromIntegral size) / dt :: Integer) ++ "/s)"
+  DB.needsInsert db fi >>= \ni -> when ni $ do
+    DB.addFile db fi
+    FCP.sendRequest conn $ FCP.ClientPut "CHK@" mime Nothing "foo" (FCP.DirectPut cont)
+    trackPutProgress conn >>= \result -> case result of
+      PutFailed m    -> error $ "put failed: " ++ m
+      PutSuccess uri -> do
+        DB.insertDone db fn uri
+        end <- getCurrentTime
+        let dt = realToFrac $ diffUTCTime end start :: Double
+        putStrLn $ "insert took " ++ show dt ++ "s (" ++ prettySize (round $ (fromIntegral size) / dt :: Integer) ++ "/s)"
