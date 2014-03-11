@@ -9,7 +9,7 @@ module Database (
   relPath,
 
   -- * other metadata
-  loadKeys, saveKeys
+  loadKeys, saveKeys, loadNode
   ) where
 
 import Control.Applicative ( (<$>) )
@@ -141,7 +141,11 @@ saveKeys db keys = writeFile (keysFile db) $ show keys
 
 loadKeys :: SiteDb -> IO (Maybe (String, Int, String, String))
 loadKeys db = catch ((readFile (keysFile db)) >>= return . Just . read)
-              (\e -> do
-                  print (e :: IOException)
-                  return Nothing)
-              
+              (\e -> print (e :: IOException) >> return Nothing)
+
+nodeFile :: SiteDb -> FilePath
+nodeFile db = (dbDir $ siteBasePath db) </> "node"
+
+loadNode :: SiteDb -> IO (String, Int)
+loadNode db = catch ((readFile (nodeFile db)) >>= return . read)
+              (\e -> print (e :: IOException) >> return ("127.0.0.1", 9481))

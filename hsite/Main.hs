@@ -13,9 +13,6 @@ import qualified Database as DB
 import qualified Insert as INS
 import Utils ( prettySize )
 
-getNode :: IO (String, Int)
-getNode = return ("127.0.0.1", 9481)
-
 getFileSize :: String -> IO FileOffset
 getFileSize path = do
     stat <- getFileStatus path
@@ -27,7 +24,7 @@ runMode (CMD.GenKeys name) = DB.withDb $ \db -> do
   case mk of
     Just _  -> putStrLn "you already have generated keys"
     Nothing -> do
-      (host, port) <- getNode
+      (host, port) <- DB.loadNode db
       c <- FCP.connect "hsite-genkey" host port
       FCP.sendRequest c $ FCP.GenerateSsk Nothing
       FCP.processMessages c $ \msg -> case FCP.msgName msg of
@@ -64,7 +61,7 @@ runMode (CMD.Insert chk) = DB.withDb $ \db ->
       putStrLn $ "USK" ++ (drop 3 ruri) ++ name ++ "/" ++ show rev
       
 runMode (CMD.InsertFiles files) = DB.withDb $ \db -> do
-  (host, port) <- getNode
+  (host, port) <- DB.loadNode db
   conn <- FCP.connect "hsite-insertChk" host port
   mapM_ (INS.insertChk conn db) files
   

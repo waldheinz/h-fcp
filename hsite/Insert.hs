@@ -70,7 +70,8 @@ insertSite db siteUri = do
         DB.addFile db (file, size, hashContents cont)
         return (file, (p, fileMime file, FCP.DirectPut cont))
 
-  conn <- FCP.connect "hsite-insert" "127.0.0.1" 9481
+  (host, port) <- DB.loadNode db
+  conn <- FCP.connect "hsite-insert" host port
   FCP.sendRequest conn $ FCP.ClientPutComplexDir siteUri "bar" (Just "index.html") $ map snd todo
   trackPutProgress conn >>= \result -> case result of
     PutFailed  e   -> error $ "put failed: " ++ e
