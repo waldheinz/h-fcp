@@ -86,7 +86,7 @@ printValues vs = do
   (host, port) <- getTarget
   c <- FCP.connect "hmunin" host port
   FCP.processMessages c $ \rm -> case FCP.msgName rm of
-    "NodeHello" -> FCP.getNode c False True >> return True
+    "NodeHello" -> FCP.sendRequest c (FCP.GetNode False True) >> return True
     "NodeData"  -> printStats vs rm >> return False
     x           -> error $ "can't deal with " ++ x
 

@@ -3,7 +3,7 @@ module Network.FCP (
   Connection, connect, processMessages,
   
   -- * Client Requests
-  ClientRequest(..), ClientPutData(..), sendRequest, getNode,
+  ClientRequest(..), ClientPutData(..), sendRequest,
   
   -- * Raw Messages
   Message, msgName, msgFields, msgField, msgPayload
@@ -62,13 +62,6 @@ readln c = do
   s <- hGetLine h
 --  putStrLn $ "< " ++ s
   return s
-
-getNode :: Connection -> Bool -> Bool -> IO ()
-getNode c priv vol = sendMessage c $ Message "GetNode" (Map.fromList
-                     [ ("WithPrivate", map toLower $ show priv)
-                     , ("WithVolatile", map toLower $ show vol)
-                     ])
-                     Nothing
 
 data Message = Message
                   { msgName    :: String
@@ -140,6 +133,10 @@ data ClientRequest
   | GenerateSsk
     { gsIdentifier :: Maybe String -- ^ request identifier
     }
+  | GetNode
+    { gnPrivate    :: Bool -- ^ include private data
+    , gnVolatile   :: Bool -- ^ include volatile information like statistics
+    }
     
 sendRequest :: Connection -> ClientRequest -> IO ()
 sendRequest c (ClientPut uri ct mfn ident d) = do
@@ -181,3 +178,9 @@ sendRequest c (ClientPutComplexDir uri ident defn files) = do
   
 sendRequest c (GenerateSsk mi) = 
   sendMessage c $ mkMessage "GenerateSSK" (maybe [] (\i -> [("Identifier", i)]) mi) Nothing
+  
+sendRequest c (GetNode priv vol) =
+  sendMessage c $ Message "GetNode" (Map.fromList
+                                     [ ("WithPrivate", map toLower $ show priv)
+                                     , ("WithVolatile", map toLower $ show vol)
+                                     ]) Nothing
