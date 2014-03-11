@@ -55,6 +55,13 @@ opennetSize = ("Opennet Size Estimate", "nodes",
                , ("sz_144_hrs", "144 hours", Gauge, "opennetSizeEstimate144hourRecent")
                ])
 
+storeAccessChk :: ValueSet
+storeAccessChk = ("CHK Store Access Rates", "requests",
+                  [ ("chk_store_access", "CHK Store Accesses", Counter, "storeAccesses")
+                  , ("chk_store_hits",   "CHK Store Hits",     Counter, "storeHits")
+                  , ("chk_store_writes", "CHK Store Writes",   Counter, "storeWrites")
+                  ])
+
 storeSuccess :: ValueSet
 storeSuccess = ("Store Success Rates", "hit %",
                 [ ("chk_cache", "CHK Cache", Gauge, "percentCachedStoreHitsOfAccesses")
@@ -63,12 +70,13 @@ storeSuccess = ("Store Success Rates", "hit %",
                
 allValueSets :: [(String, ValueSet)]
 allValueSets =
-  [ ("bandwidth",     bandwidth)
-  , ("fetch_count",   fetchCount)
-  , ("fetch_success", fetchSuccess)
-  , ("opennet_size",  opennetSize)
-  , ("remotes",       remotes)
-  , ("store_success", storeSuccess)
+  [ ("bandwidth",        bandwidth)
+  , ("fetch_count",      fetchCount)
+  , ("fetch_success",    fetchSuccess)
+  , ("opennet_size",     opennetSize)
+  , ("remotes",          remotes)
+  , ("store_access_chk", storeAccessChk)
+  , ("store_success",    storeSuccess)
   ]
 
 printConfig :: ValueSet -> IO ()

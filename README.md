@@ -16,11 +16,12 @@ quite common for Munin plugins, the name of the executable decides which graph
 it generates. Currently, the following names are available:
 
 ~~~
-fn_bandwidth		-> Bandwidth Usage
-fn_fetch_count		-> Fetch Count
-fn_fetch_success	-> Fetch Success
-fn_opennet_size		-> Opennet Size Estimate
-fn_remotes			-> Remote Transfers
+fn_bandwidth        -> Bandwidth Usage
+fn_fetch_count      -> Fetch Count
+fn_fetch_success    -> Fetch Success
+fn_opennet_size     -> Opennet Size Estimate
+fn_remotes          -> Remote Transfers
+fn_store_access_chk -> CHK Store Access Rates
 fn_store_success    -> Store Lookup Success
 ~~~
 
