@@ -21,6 +21,13 @@ bandwidth = ("Bandwidth Usage", "rate",
   , ("recent_rate_out", "recent output rate", Gauge, "recentOutputRate")
   ])
 
+cacheAccessChk :: ValueSet
+cacheAccessChk = ("CHK Cache Access Rates", "requests per ${graph_period}",
+                  [ ("chk_cache_access", "CHK Cache Accesses", Counter, "cacheAccesses")
+                  , ("chk_cache_hits",   "CHK Cache Hits",     Counter, "cachedStoreHits")
+                  , ("chk_cache_writes", "CHK Cache Writes",   Counter, "cachedStoreWrites")
+                  ])
+
 fetchCount :: ValueSet
 fetchCount = ("Fetch Count", "# of fetches",
               [ ("chk_local" , "CHK local" , Counter, "chkLocalFetchCount" )
@@ -75,6 +82,7 @@ threadCount = ("Thread Count", "threads",
 allValueSets :: [(String, ValueSet)]
 allValueSets =
   [ ("bandwidth",        bandwidth)
+  , ("cache_access_chk", cacheAccessChk)
   , ("fetch_count",      fetchCount)
   , ("fetch_success",    fetchSuccess)
   , ("opennet_size",     opennetSize)
