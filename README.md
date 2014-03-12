@@ -23,6 +23,7 @@ fn_opennet_size     -> Opennet Size Estimate
 fn_remotes          -> Remote Transfers
 fn_store_access_chk -> CHK Store Access Rates
 fn_store_success    -> Store Lookup Success
+fn_threads          -> Thread Count
 ~~~
 
 To generate a graph, just symlink the executable under the desired name to

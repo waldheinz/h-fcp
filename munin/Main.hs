@@ -68,6 +68,10 @@ storeSuccess = ("Store Success Rates", "hit %",
                 , ("chk_store", "CHK Store", Gauge, "percentStoreHitsOfAccesses")
                 ])
                
+threadCount :: ValueSet
+threadCount = ("Thread Count", "threads",
+               [ ("threads_running", "Running Threads", Gauge, "runningThreadCount") ])
+              
 allValueSets :: [(String, ValueSet)]
 allValueSets =
   [ ("bandwidth",        bandwidth)
@@ -77,8 +81,9 @@ allValueSets =
   , ("remotes",          remotes)
   , ("store_access_chk", storeAccessChk)
   , ("store_success",    storeSuccess)
+  , ("threads",          threadCount)
   ]
-
+  
 printConfig :: ValueSet -> IO ()
 printConfig (t, vl, vs) = do
   putStrLn   "graph_category freenet"
