@@ -23,9 +23,9 @@ bandwidth = ("Bandwidth Usage", "rate",
             
 bandwidthDelays :: ValueSet
 bandwidthDelays = ("BW Limit Delays", "delay in [ms]",
-                   [ ("delay",      "Delay", Gauge, "bwlimitDelayTime"),
-                     ("delay_rt",   "Delay", Gauge, "bwlimitDelayTimeRT"),
-                     ("delay_bulk", "Delay", Gauge, "bwlimitDelayTimeBulk")
+                   [ ("delay",      "Delay",          Gauge, "bwlimitDelayTime"),
+                     ("delay_rt",   "Realtime Delay", Gauge, "bwlimitDelayTimeRT"),
+                     ("delay_bulk", "Bulk Delay",     Gauge, "bwlimitDelayTimeBulk")
                    ])
                   
 cacheAccessChk :: ValueSet
