@@ -17,6 +17,7 @@ it generates. Currently, the following names are available:
 
 ~~~
 fn_bandwidth        -> Bandwidth Usage
+fn_bw_limit_delay   -> Bandwidth Limit Delays
 fn_cache_access_chk -> CHK Cache Access Rates
 fn_fetch_count      -> Fetch Count
 fn_fetch_success    -> Fetch Success

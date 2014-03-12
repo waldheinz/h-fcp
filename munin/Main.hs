@@ -20,7 +20,14 @@ bandwidth = ("Bandwidth Usage", "rate",
   , ("recent_rate_in", "recent input rate", Gauge, "recentInputRate")
   , ("recent_rate_out", "recent output rate", Gauge, "recentOutputRate")
   ])
-
+            
+bandwidthDelays :: ValueSet
+bandwidthDelays = ("BW Limit Delays", "delay in [ms]",
+                   [ ("delay",      "Delay", Gauge, "bwlimitDelayTime"),
+                     ("delay_rt",   "Delay", Gauge, "bwlimitDelayTimeRT"),
+                     ("delay_bulk", "Delay", Gauge, "bwlimitDelayTimeBulk")
+                   ])
+                  
 cacheAccessChk :: ValueSet
 cacheAccessChk = ("CHK Cache Access Rates", "requests per ${graph_period}",
                   [ ("chk_cache_access", "CHK Cache Accesses", Counter, "cacheAccesses")
@@ -82,6 +89,7 @@ threadCount = ("Thread Count", "threads",
 allValueSets :: [(String, ValueSet)]
 allValueSets =
   [ ("bandwidth",        bandwidth)
+  , ("bw_limit_delay",   bandwidthDelays)
   , ("cache_access_chk", cacheAccessChk)
   , ("fetch_count",      fetchCount)
   , ("fetch_success",    fetchSuccess)
