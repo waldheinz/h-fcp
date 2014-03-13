@@ -135,7 +135,7 @@ insertChk conn db fn = withFile fn ReadMode $ \fh -> do
     DB.addFile db fi
     FCP.sendRequest conn $ FCP.ClientPut "CHK@" mime Nothing "foo" (FCP.DirectPut cont)
     trackPutProgress conn >>= \result -> case result of
-      PutFailed m    -> error $ "put failed: " ++ m
+      PutFailed m    -> putStrLn $ "put failed: " ++ m
       PutSuccess uri -> do
         DB.insertDone db fn uri
         end <- getCurrentTime
