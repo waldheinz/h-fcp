@@ -43,6 +43,12 @@ env.port = 1234
 
 in your Munin node config file (usually under `/etc/munin/plugin-conf.d/`).
 
+HSite
+-----
+
+Allows to insert and maintain Freesites. There is a separate readme in
+the [subdirectory][4] for that program.
+
 Installation
 ------------
 
@@ -54,3 +60,4 @@ executable(s) will be located under the newly created `dist` directory.
 [1]: https://freenetproject.org/
 [2]: http://munin-monitoring.org/
 [3]: http://www.haskell.org/platform/
+[4]: https://github.com/waldheinz/h-fcp/tree/master/hsite
