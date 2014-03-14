@@ -5,17 +5,17 @@ HSite
 HSite is a command line tool to insert and maintain Freesites from the
 command line. Because I did not settle on the final form of the
 commands and parameters that are ultimately needed, here's just a
-small how-to showing how to use it in it's current form:
+small how-to showing it in action in it's current form:
 
 First, you will want a directory where you'll maintain your Freesite
 and then initialize a hsite project there:
 
-~~~
+~~~bash
 $ mkdir hsite-test && cd hsite-test
 $ hsite init
 ~~~
 
-This will create an subdirectory called ".hsite" inside your project
+This will create an subdirectory called `.hsite` inside your project
 folder. This will be used to keep track of the insert state, and also
 store some additional metadata. We'll have a look at it's contents
 later on. Note that this directory is only kept on your local storage,
