@@ -19,19 +19,19 @@ This will create an subdirectory called `.hsite` inside your project
 folder. This will be used to keep track of the insert state, and also
 store some additional metadata. We'll have a look at it's contents
 later on. Note that this directory is only kept on your local storage,
-but never inserted into Freenet. Now that the project was initialized,
-we may have a look at it's status:
+but is never inserted into Freenet. Now that the project was
+initialized, we may have a look at it's status:
 
-~~~
+~~~bash
 $ hsite status
 Files needing an insert:
 0.00 B in 0 files.
 ~~~
 
-Ok, that's kind of expected: Nothing to do. So let's add our very
+That's kind of expected: Nothing to see here. So let's add our very
 first file:
 
-~~~
+~~~bash
 $ echo "So I created another Freesite?" > test.txt
 $ hsite status
 Files needing an insert:
@@ -40,10 +40,10 @@ Files needing an insert:
 ~~~
 
 So hsite as really noticed it. The "fresh" indicates that this is a
-new file which was not inserted before. Seems legit. We can actually
-insert this now, using the `insertFiles` command:
+new file which was not inserted before. We can actually insert this
+now, using the `insertFiles` command:
 
-~~~
+~~~bash
 $ hsite insertFiles *.txt
 /tmp/hsite-test/.hsite/node: openFile: does not exist (No such file or directory)
 CHK@0YGXErExxsMozrTdlvOV3qZDhofVK018iq-Lm0HZtRM,rHlY~VZRPKd~ZH5C488shkGCmXcUpL39Pi78ni0DVrA,AAMC--8
@@ -52,15 +52,16 @@ CHK@0YGXErExxsMozrTdlvOV3qZDhofVK018iq-Lm0HZtRM,rHlY~VZRPKd~ZH5C488shkGCmXcUpL39
 
 The line starting with `CHK@` is the URI where your data can be
 fetched. This information is also stored in hsite's database we've
-created with the `init` command. I'm aware that this output is a bit
-garbled currently, but it get's the message over. Also, it's true:
-Freenet used 16 minutes to insert a 31 byte file. It's more efficient
-for larger inserts, though. You may also try to fetch that file now.
+created with the `init` command before. I'm aware that this output is
+a bit garbled currently, but it get's the message over I think. Also,
+it's true: Freenet used 16 minutes to insert a 31 byte file. It's more
+efficient for larger inserts, though. You may also try to fetch that
+file now.
 
 But what we have so far is not really a Freesite, but just a blob of
 data with an key. Let's fix that by adding an `index.html` file:
 
-~~~
+~~~bash
 $ cat > index.html << EOF
 <html>
   <head>
@@ -85,12 +86,12 @@ As we see, there is a "fresh" `index.html` file, and the `test.txt`
 was modified since the last insert. So let's finally give inserting
 our site a first try:
 
-~~~
+~~~bash
 hsite insert --chk
 CHK@wwZqe6lwqnj0vptcngfc1LVtL8LRiwhEWfxbOaeaRTQ,1wqHyvtIOq0VOc1bIPpKeuZyOacUaspWwDiB3jzQsQQ,AAMC--8
 ~~~
 
-This will really insert the site:
+This will really insert a Freesite:
 
   * something that has a manifest pointing to `index.html` as the
     "default entry", and containing all files either directly or as
@@ -102,20 +103,20 @@ This will really insert the site:
 
 Beware that when inserting the site with the `--chk` flag, hsite will
 do just that and insert using an `CHK` key. This means the site cannot
-be easily updated, because you the next edition will get a different
-key, which you would have to distribute manually. But we can do better
-by just omitting that flag and doing a `SSK` insert:
+be easily updated, because the next edition will get a different key,
+which you would have to distribute manually. But we can do better by
+just omitting that flag and doing a `SSK` insert:
 
-~~~
+~~~bash
 $ hsite insert
 hsite: you can only do --chk inserts until you generated keys
 ~~~
 
-Oh, there's something missing as it seems: We need to tell hsite about
-the keys it should use for the insert (there's some public key crypto
-going on under the hood for updatable size). That's easy enough, too:
+Oh, there's something missing: We need to tell hsite about the keys it
+should use for the insert (there's some public key crypto going on
+under the hood for updatable size). That's easy enough, too:
 
-~~~
+~~~bash
 $ hsite keygen test
 /tmp/hsite-test/.hsite/keys: openFile: does not exist (No such file or directory)
 /tmp/hsite-test/.hsite/node: openFile: does not exist (No such file or directory)
@@ -124,7 +125,7 @@ $ hsite keygen test
 Please ignore these error messages for now, everything went
 well. Check your keys (if you like to) and try the insert again:
 
-~~~
+~~~bash
 $ cat .hsite/keys
 (omitted)
 $ hsite insert
@@ -152,17 +153,16 @@ Congratulations, now that's a real Freesite. Things you should be aware of:
 
   * If your site contains relatively large files (maybe larger than
     1MB or so), it can make sense to insert them first using the
-    `insertFiles` command, and insert the rest of the site once they
-    are out of the way. The will not be re-inserted but just be
+    `insertFiles` command, and then insert the rest of the site once
+    they are out of the way. They will not be re-inserted but just be
     redirected from the site's manifest.
 
 Finally, about that missing `node` file hsite keeps complaining about:
-By default, hsite will try to talk to your Freenet node at
-`localhost`, port 9481. This is the Freenet default and should be
-suitable for most users. To make this message go away simply create
-that file:
+By default, hsite will try to talk to your Freenet node at `localhost`
+on port 9481. This is the Freenet default and should be suitable for
+most users. To make this message go away simply create that file:
 
-~~~
+~~~bash
 $ echo '("localhost", 9481)' > .hsite/node
 ~~~
 
