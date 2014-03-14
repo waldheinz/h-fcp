@@ -39,9 +39,9 @@ Files needing an insert:
 31.00 B in 1 files.
 ~~~
 
-So hsite as really noticed it. The "fresh" indicates that this is a
-new file which was not inserted before. We can actually insert this
-now, using the `insertFiles` command:
+So hsite really noticed it. The "fresh" indicates that this is a new
+file which was not inserted before. We can insert this now, using the
+`insertFiles` command:
 
 ~~~bash
 $ hsite insertFiles *.txt
@@ -59,7 +59,7 @@ efficient for larger inserts, though. You may also try to fetch that
 file now.
 
 But what we have so far is not really a Freesite, but just a blob of
-data with an key. Let's fix that by adding an `index.html` file:
+data with a key. Let's fix that by adding an `index.html` file:
 
 ~~~bash
 $ cat > index.html << EOF
@@ -87,7 +87,7 @@ was modified since the last insert. So let's finally give inserting
 our site a first try:
 
 ~~~bash
-hsite insert --chk
+$ hsite insert --chk
 CHK@wwZqe6lwqnj0vptcngfc1LVtL8LRiwhEWfxbOaeaRTQ,1wqHyvtIOq0VOc1bIPpKeuZyOacUaspWwDiB3jzQsQQ,AAMC--8
 ~~~
 
@@ -103,7 +103,7 @@ This will really insert a Freesite:
 
 Beware that when inserting the site with the `--chk` flag, hsite will
 do just that and insert using an `CHK` key. This means the site cannot
-be easily updated, because the next edition will get a different key,
+be easily updated, because the next edition will get a different key
 which you would have to distribute manually. But we can do better by
 just omitting that flag and doing a `SSK` insert:
 
@@ -114,7 +114,7 @@ hsite: you can only do --chk inserts until you generated keys
 
 Oh, there's something missing: We need to tell hsite about the keys it
 should use for the insert (there's some public key crypto going on
-under the hood for updatable size). That's easy enough, too:
+under the hood for updatable sites). That's easy enough, too:
 
 ~~~bash
 $ hsite keygen test
@@ -168,8 +168,9 @@ $ echo '("localhost", 9481)' > .hsite/node
 
 I think you'll get the idea what to do if your node is not running on
 `localhost`. Oh, one last thing to be aware of: hsite currently does
-not emply `DDA` transfers. This means every file will be read by hsite
-from the disk and passed on to Freenet through the socket. This might
-be a problem for really large files, but never caused an issue for me.
+not employ `DDA` transfers. This means every file will be read by
+hsite from the disk and passed on to Freenet through the socket. This
+might be a problem for really large files, but never caused an issue
+for me.
 
 Enjoy, and please file bugs or feature requests.
