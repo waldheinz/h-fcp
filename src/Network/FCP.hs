@@ -1,10 +1,10 @@
 
 module Network.FCP (
   Connection, connect, processMessages,
-  
+
   -- * Client Requests
   ClientRequest(..), ClientPutData(..), sendRequest,
-  
+
   -- * Raw Messages
   Message, msgName, msgFields, msgField, msgPayload
   ) where
@@ -30,7 +30,7 @@ sendMessage c (Message name fields payload) = do
   let
     h = cHandle c
     field (n, v) = write h $ n ++ "=" ++ v
-    
+
   write h name
   mapM_ field $ Map.toList fields
 
@@ -40,9 +40,9 @@ sendMessage c (Message name fields payload) = do
 --      field ("DataLength", show $ BSL.length pl)
       write h "Data"
       BSL.hPut h pl
-      
+
   hFlush h
-    
+
 connect :: String -> String -> Int -> IO Connection
 connect cname host port = do
   h <- connectTo host (PortNumber $ fromIntegral port)
@@ -79,10 +79,10 @@ readMessage :: Connection -> IO Message
 readMessage c = do
   name <- readln c
   (fields, hasData) <- readFields
-  
+
   let
     msg = mkMessage name fields
-    
+
   if hasData
      then case lookup "DataLength" fields of
        Nothing  -> error $ "binary message " ++ name ++ "but no DataLength given"
@@ -101,7 +101,7 @@ processMessages :: Connection -> (Message -> IO Bool) -> IO ()
 processMessages c fn = do
   m <- readMessage c
   more <- fn m
-  if more then processMessages c fn else return () 
+  if more then processMessages c fn else return ()
 
 type URI = String
 
@@ -117,7 +117,11 @@ uploadFrom (DiskPut _)     = "disk"
 uploadFrom (RedirectPut _) = "redirect"
 
 data ClientRequest
-  = ClientPut
+  = ClientGet
+    { cgUri :: URI
+    , cgIdentifier :: String
+    }
+  | ClientPut
     { cpUri         :: URI
     , cpContentType :: Maybe String
     , cpFileName    :: Maybe String
@@ -137,8 +141,19 @@ data ClientRequest
     { gnPrivate    :: Bool -- ^ include private data
     , gnVolatile   :: Bool -- ^ include volatile information like statistics
     }
-    
+  | SubscribeUsk
+    { suUri :: URI
+    , suIdentifier :: String
+    }
+
 sendRequest :: Connection -> ClientRequest -> IO ()
+
+sendRequest c (SubscribeUsk uri ident) =
+  sendMessage c $ mkMessage "SubscribeUSK" [ ("URI", uri), ("Identifier", ident) ] Nothing
+
+sendRequest c (ClientGet uri ident) =
+  sendMessage c $ mkMessage "ClientGet" [ ("URI", uri), ("Identifier", ident) ] Nothing
+
 sendRequest c (ClientPut uri ct mfn ident d) = do
   let
     fields = [("URI", uri), ("Identifier", ident), ("Verbosity", "1")] ++
@@ -147,11 +162,11 @@ sendRequest c (ClientPut uri ct mfn ident d) = do
                Nothing -> []) ++
              [("UploadFrom", uploadFrom d)] ++
              (maybe [] (\fn -> [("TargetFilename", fn)]) mfn)
-    
+
   case d of
     DirectPut bs -> sendMessage c $ mkMessage "ClientPut" (("DataLength", show $ BSL.length bs) : fields) (Just bs)
     x -> error $ show x
-    
+
 sendRequest c (ClientPutComplexDir uri ident defn files) = do
   let
     file (num, (name, mime, cont)) =
@@ -175,10 +190,10 @@ sendRequest c (ClientPutComplexDir uri ident defn files) = do
                   _            -> sofar) BSL.empty files
 
   sendMessage c $ mkMessage "ClientPutComplexDir" fields (Just d)
-  
-sendRequest c (GenerateSsk mi) = 
+
+sendRequest c (GenerateSsk mi) =
   sendMessage c $ mkMessage "GenerateSSK" (maybe [] (\i -> [("Identifier", i)]) mi) Nothing
-  
+
 sendRequest c (GetNode priv vol) =
   sendMessage c $ Message "GetNode" (Map.fromList
                                      [ ("WithPrivate", map toLower $ show priv)
